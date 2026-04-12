@@ -1,0 +1,4 @@
+#!/bin/sh
+
+export PYTHONPATH=${PYTHONPATH:-"./examples:./lib:./src"}
+python -m fluvius.manager -- $*

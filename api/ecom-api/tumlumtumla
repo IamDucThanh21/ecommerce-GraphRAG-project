@@ -1,0 +1,15 @@
+
+import "../../justlib/pyapp.just"
+import "../../justlib/python.just"
+import "../../justlib/postgres.just"
+
+
+create-schema MODULE:
+    ./manager db create-schema {{MODULE}} --force
+
+drop-schema MODULE:
+    ./manager db drop-schema {{MODULE}} --force
+
+
+unstable:
+export JUST_UNSTABLE=1 
