@@ -1,18 +1,18 @@
 from fluvius.domain import Domain, SQLDomainLogStore
 
 from .state import ECOMStateManager
-from .aggregate import TTPTourAggregate
+from .aggregate import EcomClientAggregate
 
 from . import config
 
-class TTPTourServiceDomain(Domain):
+class ECOMClientServiceDomain(Domain):
     __namespace__ = config.NAMESPACE
     __statemgr__ = ECOMStateManager
-    __aggregate__ = TTPTourAggregate
+    __aggregate__ = EcomClientAggregate
     __log_store__ = SQLDomainLogStore
 
-class TourServiceResponse(TTPTourServiceDomain.Response):
+class TourServiceResponse(ECOMClientServiceDomain.Response):
     pass
 
-class TourServiceMessage(TTPTourServiceDomain.Message):
+class TourServiceMessage(ECOMClientServiceDomain.Message):
     pass

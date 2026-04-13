@@ -21,9 +21,12 @@ from fluvius.mcp import configure_mcp_server
 # from fluvius_beam import configure_beam_client
 # Import the loan application process workflow
 # from . import process
+from ecom_domain import ecom_client
+
 
 domains = (
-    WorkflowDomain,
+    'ecom_domain.ecom_client.ECOMClientServiceDomain',
+    # WorkflowDomain,
     # 'rfx_idm.IDMDomain',
     # 'rfx_user.UserProfileDomain',
     # 'rfx_message.RFXMessageServiceDomain',
@@ -32,7 +35,8 @@ domains = (
 )
 
 queries = (
-    WorkflowQueryManager,
+    'ecom_domain.ecom_client.ECOMClientQueryManager',
+    # WorkflowQueryManager,
     # 'rfx_idm.IDMQueryManager',
     # 'rfx_user.UserProfileQueryManager',
     # 'rfx_message.RFXMessageServiceQueryManager',
