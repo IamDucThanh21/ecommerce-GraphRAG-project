@@ -26,18 +26,12 @@ class EcomClientAggregate(Aggregate):
     """Aggregate for ecom client domain."""
 
     @action("generate-jwt-token", resources="user")
-    def generate_jwt_token(self, session_id: str, user_id: uuid.UUID, username: str, expires_in_hours: int = JWT_EXPIRATION_HOURS) -> str:
-        """
-        Generate a JWT token for user authentication.
-        
-        Args:
-            user_id: User ID
-            username: Username
-            expires_in_hours: Token expiration time in hours
-            
-        Returns:
-            JWT token string
-        """
+    def generate_jwt_token(
+    session_id: str,
+    user_id: uuid.UUID,
+    username: str,
+    expires_in_hours: int = JWT_EXPIRATION_HOURS
+    ) -> str:
         payload = {
             "user_id": str(user_id),
             "username": username,
@@ -46,10 +40,8 @@ class EcomClientAggregate(Aggregate):
             "type": "access",
             "session_id": session_id,
         }
-        
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-        return token
 
+        return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     def verify_jwt_token(self, token: str) -> dict:
         """
         Verify and decode a JWT token.
@@ -71,7 +63,6 @@ class EcomClientAggregate(Aggregate):
         except jwt.InvalidTokenError:
             raise BadRequestError("AUTH.006", "Invalid token.")
 
-    @action
     def hash_password(self, password: str) -> str:
         """
         Hash a password using bcrypt.
@@ -106,7 +97,7 @@ class EcomClientAggregate(Aggregate):
             return False
 
     @action("check-user-exists", resources="user")
-    async def check_user_exists(self, stm, username: str, email: str) -> bool:
+    async def check_user_exists(self, username: str, email: str):
         """
         Check if a user already exists by username or email.
         
@@ -118,25 +109,31 @@ class EcomClientAggregate(Aggregate):
         Returns:
             True if user exists, False otherwise
         """
-        async with stm.session() as session:
-            # Check if user with this username exists
-            stmt = select(User).where(User.username == username)
-            result = await session.execute(stmt)
-            if result.scalar_one_or_none():
-                return True
-            
-            # Check if user identity with this email exists
-            stmt = select(UserIdentity).where(UserIdentity.telecom__email == email)
-            result = await session.execute(stmt)
-            if result.scalar_one_or_none():
-                return True
-            
-            return False
+        existing_user = await self.statemgr.exist(
+            "user",
+            where={"username": username,"_deleted": None}
+        )
+        if existing_user:
+            return True
+
+        existing_identity = await self.statemgr.exist(
+            "user_identity",
+            where={"telecom__email": email,"_deleted": None}
+        )
+        return existing_identity
+
+        # if not existing_user:
+        #     existing_user = await self.statemgr.exist(
+        #         "user_identity",
+        #         where={
+        #             "telecom__email": email
+        #         }
+        #     )
+        #     return existing_user
 
     @action("create-user", resources="user")
     async def create_user(
         self,
-        stm,
         user_id: uuid.UUID,
         username: str,
         email: str,
@@ -163,55 +160,102 @@ class EcomClientAggregate(Aggregate):
         """
         hashed_password = self.hash_password(password)
         
-        async with stm.session() as session:
-            # Create user
-            user = User(
-                _id=user_id,
-                username=username,
-                active=True,
-                status=UserStatusEnum.ACTIVE,
-                is_super_admin=False
-            )
-            session.add(user)
+        # async with stm.session() as session:
+        #     # Create user
+        #     user = User(
+        #         _id=user_id,
+        #         username=username,
+        #         active=True,
+        #         status=UserStatusEnum.ACTIVE,
+        #         is_super_admin=False
+        #     )
+        #     session.add(user)
             
-            # Create user identity (local provider)
-            user_identity = UserIdentity(
-                _id=UUID_GENR(),
-                user_id=user_id,
-                provider="local",
-                provider_user_id=username,
-                active=True,
-                telecom__email=email,
-                telecom__phone=phone,
-                password_hash=hashed_password
-            )
-            session.add(user_identity)
+        #     # Create user identity (local provider)
+        #     user_identity = UserIdentity(
+        #         _id=UUID_GENR(),
+        #         user_id=user_id,
+        #         provider="local",
+        #         provider_user_id=username,
+        #         active=True,
+        #         telecom__email=email,
+        #         telecom__phone=phone,
+        #         password_hash=hashed_password
+        #     )
+        #     session.add(user_identity)
             
-            # Create user profile
-            profile = Profile(
-                _id=UUID_GENR(),
-                user_id=user_id,
-                username=username,
-                telecom__email=email,
-                telecom__phone=phone,
-                name__given=first_name,
-                name__family=last_name,
-                verified_email=email if first_name and last_name else None,
-                status=UserStatusEnum.ACTIVE,
-                current_profile=True
-            )
-            session.add(profile)
+        #     # Create user profile
+        #     profile = Profile(
+        #         _id=UUID_GENR(),
+        #         user_id=user_id,
+        #         username=username,
+        #         telecom__email=email,
+        #         telecom__phone=phone,
+        #         name__given=first_name,
+        #         name__family=last_name,
+        #         verified_email=email if first_name and last_name else None,
+        #         status=UserStatusEnum.ACTIVE,
+        #         current_profile=True
+        #     )
+        #     session.add(profile)
             
-            await session.commit()
+        #     await session.commit()
             
-            return {
-                "user_id": user_id,
-                "username": username,
-                "email": email,
-                "first_name": first_name,
-                "last_name": last_name,
-                "phone": phone
-            }
+        #     return {
+        #         "user_id": user_id,
+        #         "username": username,
+        #         "email": email,
+        #         "first_name": first_name,
+        #         "last_name": last_name,
+        #         "phone": phone
+        #     }
+
+        user = self.init_resource(
+            "user",
+            _id=user_id,
+            username=username,
+            active=True,
+            status=UserStatusEnum.ACTIVE.value,
+            is_super_admin=False
+        )
+        await self.statemgr.insert(user)
+
+        user_identity = self.init_resource(
+            "user_identity",
+            _id=UUID_GENR(),
+            user_id=user_id,
+            provider="local",
+            provider_user_id=username,
+            active=True,
+            telecom__email=email,
+            telecom__phone=phone,
+            password_hash=hashed_password
+        )
+        await self.statemgr.insert(user_identity)
+
+        profile = self.init_resource(
+            "profile",
+            _id=UUID_GENR(),
+            user_id=user_id,
+            username=username,
+            telecom__email=email,
+            telecom__phone=phone,
+            name__given=first_name,
+            name__family=last_name,
+            verified_email=email if first_name and last_name else None,
+            status=UserStatusEnum.ACTIVE.value,
+            current_profile=True
+        )
+        await self.statemgr.insert(profile)
+
+        return {
+            "user_id": user_id,
+            "username": username,
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "phone": phone
+        }
 
     @action
     async def get_user_identity(self, stm, username_or_email: str) -> UserIdentity:
@@ -257,14 +301,7 @@ class EcomClientAggregate(Aggregate):
             return result.scalar_one_or_none()
 
     @action("create-session", resources="user")
-    async def create_session(
-        self,
-        stm,
-        user_id: uuid.UUID,
-        session_id: uuid.UUID,
-        source: UserSourceEnum = UserSourceEnum.WEB,
-        email: str = None
-    ) -> dict:
+    async def create_session(self, user_id: uuid.UUID, session_id: uuid.UUID, source: UserSourceEnum = UserSourceEnum.WEB, email: str = None) -> dict:
         """
         Create a user session.
         
@@ -278,22 +315,36 @@ class EcomClientAggregate(Aggregate):
         Returns:
             Dictionary with session details
         """
-        async with stm.session() as session:
-            user_session = UserSession(
-                _id=session_id,
-                user_id=user_id,
-                source=source,
-                telecom__email=email,
-                user_identity_id=None
-            )
-            session.add(user_session)
-            await session.commit()
+        # async with stm.session() as session:
+        #     user_session = UserSession(
+        #         _id=session_id,
+        #         user_id=user_id,
+        #         source=source,
+        #         telecom__email=email,
+        #         user_identity_id=None
+        #     )
+        #     session.add(user_session)
+        #     await session.commit()
             
-            return {
-                "session_id": session_id,
-                "user_id": user_id,
-                "source": source.value if source else None
-            }
+        #     return {
+        #         "session_id": session_id,
+        #         "user_id": user_id,
+        #         "source": source.value if source else None
+        #     }
+        user_session = self.init_resource(
+            "user_session",
+            _id=session_id,
+            user_id=user_id,
+            source=source,
+            telecom__email=email
+        )
+
+        await self.statemgr.insert(user_session)
+        return {
+            "session_id": session_id,
+            "user_id": user_id,
+            "source": source.value if source else None
+        }
 
     @action
     async def update_last_login(self, stm, user_id: uuid.UUID) -> None:

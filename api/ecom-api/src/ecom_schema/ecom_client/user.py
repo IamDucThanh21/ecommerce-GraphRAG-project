@@ -40,8 +40,6 @@ class User(Base):
             schema=SCHEMA,
         ),
         nullable=False,
-        default=UserStatusEnum.NEW,
-        server_default=text(f"'{UserStatusEnum.NEW.value}'"),
     )
     # realm_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
     # resource_access: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)

@@ -1,6 +1,6 @@
 from enum import Enum
 
-class UserStatusEnum(Enum):
+class UserStatusEnum(str, Enum):
     """User account status across the system."""
     ACTIVE      = "ACTIVE"
     INACTIVE    = "INACTIVE"
@@ -9,7 +9,7 @@ class UserStatusEnum(Enum):
     DEACTIVATED = "DEACTIVATED"
     NEW         = "NEW"
 
-class UserSourceEnum(Enum):
+class UserSourceEnum(str, Enum):
     """Source system or method of user authentication."""
     WEB       = "WEB"
     MOBILE    = "MOBILE"

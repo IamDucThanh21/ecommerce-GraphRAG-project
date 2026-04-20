@@ -44,73 +44,60 @@ class SignUpCommand(Command):
         Yields:
             Response with user_id, username, email, and JWT token
         """
-        try:
-            # Parse and validate input
-            signup_data = serialize_mapping(payload)
-            username = signup_data["username"]
-            email = signup_data["email"]
-            password = signup_data["password"]
-            first_name = signup_data["first_name"]
-            last_name = signup_data["last_name"]
-            phone = signup_data["phone"]
 
-
-            # Check if user already exists by username
-            existing_user = await agg.check_user_exists(stm, username, email)
-            if existing_user:
-                raise BadRequestError(
+        # Parse and validate input
+        signup_data = serialize_mapping(payload)
+        username = signup_data["username"]
+        email = signup_data["email"]
+        password = signup_data["password"]
+        first_name = signup_data["first_name"]
+        last_name = signup_data["last_name"]
+        phone = signup_data["phone"]    
+        existing_user = await agg.check_user_exists(username=username, email=email)
+        if existing_user:
+            raise BadRequestError(
                     "USER.001",
                     "Username or email already registered. Please use a different username or email."
                 )
-
-            # Create initial session
-            session_id = UUID_GENR()
-            new_user_id = UUID_GENR()
-            await agg.create_session(
-                stm=stm,
-                user_id=new_user_id,
-                session_id=session_id,
-                source=UserSourceEnum.WEB
-            )
-            
-            # Create new user
-            user_data = await agg.create_user(
-                stm=stm,
-                user_id=new_user_id,
-                username=username,
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone
-            )
-            
-            # Generate JWT token
-            token = agg.generate_jwt_token(user_id=new_user_id, username=username, session_id=session_id)
-            
-            
-            
-            yield agg.create_response(
-                status="success",
-                message="User registered successfully.",
-                data={
-                    "user_id": str(new_user_id),
-                    "username": username,
-                    "email":email,
-                    "access_token": token,
-                    "token_type": "Bearer",
-                    "expires_in": JWT_EXPIRATION_HOURS * 3600,
-                    "session_id": str(session_id)
-                }
-            )
-        except BadRequestError:
-            raise
-        except Exception as e:
-            logger.error(f"Sign-up error: {str(e)}")
-            raise BadRequestError(
-                "USER.002",
-                f"Failed to register user: {str(e)}"
-            )
+        
+        # Create user first (before session, due to FK constraint)
+        new_user_id = UUID_GENR()
+        user_data = await agg.create_user(
+            user_id=new_user_id,
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone
+        )
+        
+        # Create session after user exists
+        session_id = UUID_GENR()
+        await agg.create_session(
+            user_id=new_user_id,
+            session_id=session_id,
+            source=UserSourceEnum.WEB
+        )
+        
+        # Generate JWT token
+        token = agg.generate_jwt_token(user_id=new_user_id, 
+                                       username=username, 
+                                       session_id=str(session_id))
+        
+        yield agg.create_response(
+            status="success",
+            message="User registered successfully.",
+            data={
+                "user_id": str(new_user_id),
+                "username": username,
+                "email":email,
+                "access_token": token,
+                "token_type": "Bearer",
+                "expires_in": JWT_EXPIRATION_HOURS * 3600,
+                "session_id": str(session_id)
+            }
+        )
 
 
 class SignInCommand(Command):

@@ -42,9 +42,9 @@ class Comment(Base):
     )
 
     post: Mapped["Post"] = relationship(back_populates="comments")
-    replies: Mapped[List["Comment"]] = relationship(
-        back_populates="parent", remote_side=[parent_id], cascade="all, delete-orphan"
-    )
-    parent: Mapped[Optional["Comment"]] = relationship(
-        back_populates="replies", remote_side=[parent_id]
-    )
+    # replies: Mapped[List["Comment"]] = relationship(
+    #     back_populates="parent", cascade="all, delete-orphan"
+    # )
+    # parent: Mapped[Optional["Comment"]] = relationship(
+    #     back_populates="replies", remote_side=[f"{SCHEMA}.comment._id"]
+    # )
