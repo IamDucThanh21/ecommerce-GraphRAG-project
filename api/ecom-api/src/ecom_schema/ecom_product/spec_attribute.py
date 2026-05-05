@@ -5,17 +5,19 @@ from __future__ import annotations
 from typing import Optional, List, TYPE_CHECKING
 
 import sqlalchemy as sa
-from sqlalchemy import String, Integer, Index, ForeignKey
+from sqlalchemy import String, Integer, Index, ForeignKey, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from . import Base
+from .types import SpecTypeEnum
 
 SCHEMA = "ecom_product"
 
 if TYPE_CHECKING:
     from .spec_group import SpecGroup
     from .product_spec_value import ProductSpecValue
+    
 
 
 class SpecAttribute(Base):
@@ -30,7 +32,14 @@ class SpecAttribute(Base):
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.spec_group._id"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    data_type: Mapped[str] = mapped_column(String(50), nullable=False)  # STRING, NUMBER, BOOLEAN, LIST, JSON
+    data_type: Mapped[SpecTypeEnum] = mapped_column(
+        SAEnum(
+            SpecTypeEnum,
+            name="spectypeenum",
+            schema=SCHEMA,
+        ),
+        nullable=False
+    )
     unit: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 

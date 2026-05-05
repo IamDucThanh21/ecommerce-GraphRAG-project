@@ -1,0 +1,1 @@
+from .ecom_product import _pgentity

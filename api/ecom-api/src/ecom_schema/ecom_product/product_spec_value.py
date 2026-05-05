@@ -15,6 +15,7 @@ SCHEMA = "ecom_product"
 
 if TYPE_CHECKING:
     from .spec_attribute import SpecAttribute
+    from .product import Product
 
 
 class ProductSpecValue(Base):
@@ -26,7 +27,9 @@ class ProductSpecValue(Base):
         Index("ix_product_spec_value_attribute_id", "attribute_id"),
     )
 
-    product_id: Mapped[str] = mapped_column(UUID(as_uuid=True), nullable=False)
+    product_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.product._id"), nullable=False
+    )
     attribute_id: Mapped[str] = mapped_column(
         UUID(as_uuid=True), ForeignKey(f"{SCHEMA}.spec_attribute._id"), nullable=False
     )
@@ -35,4 +38,5 @@ class ProductSpecValue(Base):
     value_boolean: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     value_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
 
+    product: Mapped["Product"] = relationship(back_populates="spec_values")
     attribute: Mapped["SpecAttribute"] = relationship(back_populates="values")

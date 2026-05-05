@@ -38,13 +38,28 @@ This document defines the data model for an e-commerce system integrated with AI
 
 # 3. ecom_product
 
+## product_brand
+- id: UUID (PK)
+- name: string
+- description: string (nullable)
+
+## product_category
+- id: UUID (PK)
+- name: string
+- description: string (nullable)
+
+## product_line
+- id: UUID (PK)
+- brand_id: UUID (FK → product_brand.id)
+- category_id: UUID (FK → product_category.id)
+- name: string
+
 ## product
 - id: UUID (PK)
+- line_id: UUID (FK → product_line.id)
 - name: string
 - description: text
 - base_price: decimal
-- brand: string
-- category: string
 - status: string
 - llm_spec_text: text
 - created_at: datetime (indexed)
@@ -62,6 +77,22 @@ This document defines the data model for an e-commerce system integrated with AI
 - product_id: UUID (FK → product.id)
 - image_url: string
 - is_primary: boolean
+
+## promotion
+- id: UUID (PK)
+- product_id: UUID (FK → product.id)
+- discount_percent: integer
+- gift: string (nullable)
+- valid_from: datetime
+- valid_to: datetime
+
+## customer_review
+- id: UUID (PK)
+- product_id: UUID (FK → product.id)
+- customer_name: string
+- rating: integer (1–5)
+- comment: text
+- review_date: datetime
 
 ---
 

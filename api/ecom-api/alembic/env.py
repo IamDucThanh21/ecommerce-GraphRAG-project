@@ -6,6 +6,10 @@ from sqlalchemy import pool
 
 from alembic import context
 
+import os
+
+os.environ["REGISTER_PG_ENTITIES"] = "true"
+
 # All schema bases inherit from TTPConnector.__data_schema_base__
 # Import the connector and all schema modules to register their models
 from ecom_schema import config as ecom_config
@@ -67,9 +71,9 @@ def include_object(object, name, type_, reflected, compare_to):
     if type_ in ('table', 'view') and object.schema not in SCHEMAS:
         return False
 
-    if hasattr(object, 'info') and object.info.get('is_view'):
-        logger.warning(f"include_object: skipping {name} because it is a view")
-        return False
+    # if hasattr(object, 'info') and object.info.get('is_view'):
+    #     logger.warning(f"include_object: skipping {name} because it is a view")
+    #     return False
 
 
     # # # Never drop tables - only allow CREATE and ALTER operations

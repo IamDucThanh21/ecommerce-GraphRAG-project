@@ -93,6 +93,7 @@ class Profile(Base):
     # )
 
     user: Mapped[Optional["User"]] = relationship(back_populates="profiles")
+    supplier_profile: Mapped[Optional["SupplierProfile"]] = relationship(back_populates="profile")
     # organization: Mapped[Optional["Organization"]] = relationship(
     #     back_populates="profiles"
     # )
