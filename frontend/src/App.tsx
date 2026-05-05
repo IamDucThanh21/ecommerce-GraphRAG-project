@@ -13,8 +13,9 @@ import DetailPage from './pages/DetailPage';
 import AuthPage from './pages/AuthPage';
 import ChatWidget from './components/ChatWidget';
 import { Page } from './types';
+import { AuthProvider } from './contexts/AuthContext';
 
-export default function App() {
+function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
 
@@ -59,5 +60,13 @@ export default function App() {
       <Footer />
       <ChatWidget />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

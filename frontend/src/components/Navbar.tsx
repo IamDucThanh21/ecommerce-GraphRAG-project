@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Search, ShoppingCart, User, Menu } from 'lucide-react';
+import { useState } from 'react';
+import { Search, ShoppingCart, User, Menu, LogOut } from 'lucide-react';
 import { Page } from '../types';
+import logoImage from '../assets/images/w.png';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavbarProps {
   currentPage: Page;
@@ -12,6 +15,14 @@ interface NavbarProps {
 }
 
 export default function Navbar({ currentPage, setPage }: NavbarProps) {
+  const { user, isAuthenticated, logOut } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const handleLogout = async () => {
+    await logOut();
+    setShowUserMenu(false);
+    setPage('home');
+  };
   const navItems = [
     { label: 'Shop', id: 'home' },
     { label: 'Products', id: 'listing' },
@@ -25,7 +36,7 @@ export default function Navbar({ currentPage, setPage }: NavbarProps) {
           onClick={() => setPage('home')}
           className="flex items-center gap-2 group transition-transform active:scale-95 shrink-0"
         >
-          <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center text-white font-black text-lg group-hover:bg-zinc-800 transition-colors">W</div>
+          <img src={logoImage} alt="WiseTech Logo" className="w-12 h-12 rounded-lg" />
           <span className="text-2xl font-black tracking-tighter text-zinc-900">WiseTech</span>
         </button>
         
@@ -64,16 +75,66 @@ export default function Navbar({ currentPage, setPage }: NavbarProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
-          <button 
-            onClick={() => setPage('auth')}
-            className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-zinc-900/5 active:scale-95 transition-all outline-none"
-          >
-            <User className="w-6 h-6 text-zinc-800" />
-          </button>
           <button className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-zinc-900/5 active:scale-95 transition-all outline-none relative">
             <ShoppingCart className="w-6 h-6 text-zinc-800" />
             <span className="absolute top-2 right-2 w-4 h-4 bg-[#ba1a1a] text-white text-[10px] flex items-center justify-center rounded-full font-bold">3</span>
           </button>
+          
+          <div className="relative group/user">
+            {isAuthenticated ? (
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-zinc-900/5 active:scale-95 transition-all outline-none bg-zinc-900 text-white"
+                title={user?.username}
+              >
+                <span className="text-sm font-bold">{user?.username?.[0]?.toUpperCase()}</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setPage('auth')}
+                className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-zinc-900/5 active:scale-95 transition-all outline-none"
+              >
+                <User className="w-6 h-6 text-zinc-800" />
+              </button>
+            )}
+
+            {isAuthenticated && showUserMenu && (
+              <div className="absolute top-full right-0 mt-2 bg-white shadow-xl border border-zinc-100 rounded-xl py-2 min-w-[200px] z-50">
+                <div className="px-4 py-3 border-b border-zinc-100">
+                  <p className="text-sm font-semibold text-zinc-900">{user?.username}</p>
+                  {user?.email && <p className="text-xs text-zinc-500 mt-1">{user.email}</p>}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    setPage('home');
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    setPage('home');
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                >
+                  Orders
+                </button>
+                <div className="border-t border-zinc-100 mt-2 pt-2">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button className="lg:hidden w-11 h-11 flex items-center justify-center rounded-lg hover:bg-zinc-900/5 active:scale-95 transition-all outline-none">
             <Menu className="w-6 h-6 text-zinc-800" />
           </button>

@@ -81,9 +81,9 @@ class SignUpCommand(Command):
         )
         
         # Generate JWT token
-        token = agg.generate_jwt_token(user_id=new_user_id, 
+        token = await agg.generate_jwt_token(user_id=new_user_id, 
                                        username=username, 
-                                       session_id=str(session_id))
+                                      )
         
         yield agg.create_response(
             status="success",

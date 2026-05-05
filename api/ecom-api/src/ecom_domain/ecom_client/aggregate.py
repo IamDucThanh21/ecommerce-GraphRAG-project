@@ -26,22 +26,23 @@ class EcomClientAggregate(Aggregate):
     """Aggregate for ecom client domain."""
 
     @action("generate-jwt-token", resources="user")
-    def generate_jwt_token(
-    session_id: str,
-    user_id: uuid.UUID,
-    username: str,
-    expires_in_hours: int = JWT_EXPIRATION_HOURS
-    ) -> str:
+    async def generate_jwt_token(
+                                # session_id: str,
+                                user_id: uuid.UUID,
+                                username: str,
+                                expires_in_hours: int = JWT_EXPIRATION_HOURS
+                                ) -> str:
         payload = {
             "user_id": str(user_id),
             "username": username,
             "exp": datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),
             "iat": datetime.now(timezone.utc),
             "type": "access",
-            "session_id": session_id,
+            # "session_id": session_id,
         }
 
         return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    
     def verify_jwt_token(self, token: str) -> dict:
         """
         Verify and decode a JWT token.

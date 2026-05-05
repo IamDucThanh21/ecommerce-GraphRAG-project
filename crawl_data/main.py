@@ -225,7 +225,7 @@ def crawl_item_details(driver, wait, url):
 def get_all_product_urls(driver, wait, brand):
     """Clicks 'Xem thêm' until all products are loaded, then returns all URLs."""
     print("Loading all products...")
-    driver.get(f"https://cellphones.com.vn/laptop/{brand}.html")
+    driver.get(f"https://cellphones.com.vn/thiet-bi-am-thanh/tai-nghe/{brand}.html")
     time.sleep(5) # Initial load
 
     while True:
@@ -263,8 +263,8 @@ def get_all_product_urls(driver, wait, brand):
 def main():
     driver = setup_driver()
     wait = WebDriverWait(driver, 20)
-    brand = "msi"
-    filename = f'crawl_data/data/laptop/cellphones_{brand}.csv'
+    brand = "jbl"
+    filename = f'crawl_data/data/earphone-audio/cellphones_{brand}.csv'
     
     # ADD 'images' to the fields list
     fields = ['name', 'sku', 'base_price', 'sale_price', 'description', 'specifications', 'images', 'colors']
