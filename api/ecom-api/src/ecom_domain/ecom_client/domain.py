@@ -16,3 +16,12 @@ class TourServiceResponse(ECOMClientServiceDomain.Response):
 
 class TourServiceMessage(ECOMClientServiceDomain.Message):
     pass
+
+class UserSigninResponse(ECOMClientServiceDomain.Response):
+    pass
+
+class UserSignupResponse(ECOMClientServiceDomain.Response):
+    pass
+
+class UserLogoutResponse(ECOMClientServiceDomain.Response):
+    pass

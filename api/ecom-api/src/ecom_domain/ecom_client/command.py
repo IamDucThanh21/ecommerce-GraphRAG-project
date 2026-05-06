@@ -81,34 +81,36 @@ class SignUpCommand(Command):
         )
         
         # Generate JWT token
-        token = await agg.generate_jwt_token(user_id=new_user_id, 
-                                       username=username, 
-                                      )
+        token = await agg.generate_jwt_token(new_user_id, username)
+        
+        response_data = {
+            "user_id": str(new_user_id),
+            "username": username,
+            "email": email,
+            "access_token": token,
+            "token_type": "Bearer",
+            "expires_in": JWT_EXPIRATION_HOURS * 3600,
+            "session_id": str(session_id)
+        }
         
         yield agg.create_response(
-            status="success",
-            message="User registered successfully.",
-            data={
-                "user_id": str(new_user_id),
-                "username": username,
-                "email":email,
-                "access_token": token,
-                "token_type": "Bearer",
-                "expires_in": JWT_EXPIRATION_HOURS * 3600,
-                "session_id": str(session_id)
-            }
+            response_data,
+            _type="user-signup-response"
         )
 
 
 class SignInCommand(Command):
     """Command to sign in a user (login)."""
 
+    Data = datadef.SignInData
+
     class Meta:
         key = "sign-in"
         description = "Authenticate a user and provide JWT token."
+        resource_init = True
         resources = ("user",)
         auth_required = False
-
+        
     async def _process(self, agg, stm, payload):
         """
         Process user sign-in (login).
@@ -123,11 +125,10 @@ class SignInCommand(Command):
         """
         try:
             # Parse and validate input
-            Data = datadef.SignInData
-            signin_data = Data(**serialize_mapping(payload))
+            signin_data = serialize_mapping(payload)
             
             # Find user by username or email
-            user_identity = await agg.get_user_identity(stm, signin_data.username)
+            user_identity = await agg.get_user_identity(username=signin_data["username"])
             if not user_identity:
                 raise BadRequestError(
                     "AUTH.001",
@@ -135,16 +136,16 @@ class SignInCommand(Command):
                 )
             
             # Verify password
-            if not agg.verify_password(signin_data.password, user_identity.password_hash):
+            hash_password = user_identity.password_hash
+            verify_result = bcrypt.checkpw(signin_data["password"].encode('utf-8'), hash_password.encode('utf-8'))
+            
+            if not verify_result:
                 raise BadRequestError(
                     "AUTH.002",
                     "Invalid password. Please try again."
                 )
             
-            # Get user details
-            user_id = user_identity.user_id
-            user = await agg.get_user(stm, user_id)
-            
+            user = await agg.get_user(user_id=user_identity.user_id)
             # Check user status
             if user.status != UserStatusEnum.ACTIVE:
                 raise BadRequestError(
@@ -153,32 +154,42 @@ class SignInCommand(Command):
                 )
             
             # Generate JWT token
-            token = agg.generate_jwt_token(user_id=user_id, username=user.username)
-            
+            # token = await agg.generate_jwt_token(user_id=user._id, username=user.username)
+            now = datetime.now(timezone.utc)
+
+            payload = {
+                "user_id": str(user._id),
+                "username": user.username,
+                "exp": int((now + timedelta(hours=int(JWT_EXPIRATION_HOURS))).timestamp()),
+                "iat": int(now.timestamp()),
+                "type": "access",
+            }
+
+            token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
             # Create session
             session_id = UUID_GENR()
             await agg.create_session(
-                stm=stm,
-                user_id=user_id,
+                user_id=user._id,
                 session_id=session_id,
                 source=UserSourceEnum.WEB,
                 email=user_identity.telecom__email
             )
             
             # Update last login
-            await agg.update_last_login(stm, user_id)
-            
+            await agg.update_last_login(user_id=user._id)
+            response_data = {
+                "user_id": str(user._id),
+                "username": user.username,
+                "access_token": str(token),
+                "token_type": "Bearer",
+                "expires_in": int(JWT_EXPIRATION_HOURS) * 3600,
+                "session_id": str(session_id)
+            }
             yield agg.create_response(
                 status="success",
-                message="Sign in successful.",
-                data={
-                    "user_id": str(user_id),
-                    "username": user.username,
-                    "access_token": token,
-                    "token_type": "Bearer",
-                    "expires_in": JWT_EXPIRATION_HOURS * 3600,
-                    "session_id": str(session_id)
-                }
+                message="Sign-in successful",
+                data=response_data,
+                _type="user-signin-response"
             )
         except BadRequestError:
             raise
@@ -190,13 +201,14 @@ class SignInCommand(Command):
             )
 
 
-class LogOutCommand(Command):
+class SignOutCommand(Command):
     """Command to log out a user."""
 
     class Meta:
-        key = "log-out"
+        key = "sign-out"
         description = "Invalidate user session and log out."
-        resources = ("user",)
+        resources = ("user_session",)
+        tags = ["user", "session", "auth"]
         auth_required = True
 
     async def _process(self, agg, stm, payload):
@@ -206,48 +218,42 @@ class LogOutCommand(Command):
         Args:
             agg: Aggregate instance
             stm: State manager
-            payload: LogOutData with user_id and optional session_id
+            payload: Empty or with additional data
         
         Yields:
             Response confirming logout
         """
-        try:
-            # Parse and validate input
-            Data = datadef.LogOutData
-            logout_data = Data(**serialize_mapping(payload))
-            
-            # Verify user exists
-            user = await agg.get_user(stm, logout_data.user_id)
-            if not user:
-                raise BadRequestError(
-                    "USER.003",
-                    "User not found."
-                )
-            
-            # Invalidate session(s)
-            if logout_data.session_id:
-                # Logout from specific session
-                await agg.invalidate_session(stm, logout_data.session_id)
-            else:
-                # Logout from all sessions
-                await agg.invalidate_all_sessions(stm, logout_data.user_id)
-            
-            yield agg.create_response(
-                status="success",
-                message="Sign out successful.",
-                data={
-                    "user_id": str(logout_data.user_id),
-                    "logged_out_at": datetime.now(timezone.utc).isoformat()
-                }
-            )
-        except BadRequestError:
-            raise
-        except Exception as e:
-            logger.error(f"Logout error: {str(e)}")
-            raise BadRequestError(
-                "USER.004",
-                f"Failed to sign out: {str(e)}"
-            )
+        session_id = agg.get_aggroot().identifier
+        auth_user_id = agg.get_context().user_id
+        
+        # Fetch the actual session entity from state manager
+        # session = await stm.find_one(
+        #     "user_session",
+        #     where={"_id": session_id, "_deleted": None}
+        # )
+        
+        # if not session:
+        #     raise BadRequestError("AUTH.007", "Session not found")
+        
+        # session_owner_id = session.user_id
+        
+        # print(f"Session ID: {session_id}")
+        # # print(f"Session owner (from DB): {session_owner_id}")
+        # print(f"Auth user (from JWT context): {auth_user_id}")
+        # # print(f"Session object: {session}")
+        # print(f"Auth context user_id: {agg.get_context().user_id}")
+        session = await agg.invalidate_session(session_id=session_id)
+        
+        response_data = {
+            "user_id": str(session.user_id),
+            "session_id": str(session_id),
+            "logged_out_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        yield agg.create_response(
+            response_data,
+            _type="user-logout-response"
+        )
 
 
 class CreateUserCommand(Command):
@@ -270,3 +276,5 @@ class CreateUserCommand(Command):
                 "username": username
             }
         )
+
+    

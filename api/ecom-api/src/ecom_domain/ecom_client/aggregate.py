@@ -25,20 +25,21 @@ JWT_EXPIRATION_HOURS = 24
 class EcomClientAggregate(Aggregate):
     """Aggregate for ecom client domain."""
 
-    @action("generate-jwt-token", resources="user")
     async def generate_jwt_token(
-                                # session_id: str,
-                                user_id: uuid.UUID,
-                                username: str,
-                                expires_in_hours: int = JWT_EXPIRATION_HOURS
-                                ) -> str:
+        self,
+        user_id: uuid.UUID,
+        username: str,
+        expires_in_hours: int = JWT_EXPIRATION_HOURS
+    ) -> str:
+
+        now = datetime.now(timezone.utc)
+
         payload = {
             "user_id": str(user_id),
             "username": username,
-            "exp": datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),
-            "iat": datetime.now(timezone.utc),
+            "exp": int((now + timedelta(hours=int(expires_in_hours))).timestamp()),
+            "iat": int(now.timestamp()),
             "type": "access",
-            # "session_id": session_id,
         }
 
         return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
@@ -77,25 +78,25 @@ class EcomClientAggregate(Aggregate):
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
-    @action
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """
-        Verify a plain text password against its hash.
+    # @action
+    # def verify_password(self, plain_password, hashed_password) -> bool:
+    #     """
+    #     Verify a plain text password against its hash.
         
-        Args:
-            plain_password: Plain text password
-            hashed_password: Hashed password from database
+    #     Args:
+    #         plain_password: Plain text password
+    #         hashed_password: Hashed password from database
             
-        Returns:
-            True if password matches, False otherwise
-        """
-        if not hashed_password:
-            return False
-        try:
-            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-        except Exception as e:
-            logger.error(f"Password verification error: {str(e)}")
-            return False
+    #     Returns:
+    #         True if password matches, False otherwise
+    #     """
+    #     if not hashed_password:
+    #         return False
+    #     try:
+    #         return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    #     except Exception as e:
+    #         logger.error(f"Password verification error: {str(e)}")
+    #         return False
 
     @action("check-user-exists", resources="user")
     async def check_user_exists(self, username: str, email: str):
@@ -258,34 +259,36 @@ class EcomClientAggregate(Aggregate):
             "phone": phone
         }
 
-    @action
-    async def get_user_identity(self, stm, username_or_email: str) -> UserIdentity:
+    @action("get-user-identity", resources="user")
+    async def get_user_identity(self, username: str):
         """
-        Get user identity by username or email.
+        Get user identity by username.
         
         Args:
             stm: State manager
-            username_or_email: Username or email address
+            username: Username
             
         Returns:
             UserIdentity object or None
         """
-        async with stm.session() as session:
-            # First try to find by email
-            stmt = select(UserIdentity).where(UserIdentity.telecom__email == username_or_email)
-            result = await session.execute(stmt)
-            identity = result.scalar_one_or_none()
-            
-            if not identity:
-                # Try to find by username (through user relationship)
-                stmt = select(UserIdentity).join(User).where(User.username == username_or_email)
-                result = await session.execute(stmt)
-                identity = result.scalar_one_or_none()
-            
-            return identity
+        user = await self.statemgr.find_one(
+            "user",
+            where={"username": username, "_deleted": None}
+        )
+        if not user:
+            raise ValueError("User not found")
+        
+        user_identity = await self.statemgr.find_one(
+            "user_identity",
+            where={"user_id": user._id, "_deleted": None}
+        )
+        if not user_identity:
+            raise ValueError("User identity not found")
+        
+        return user_identity
 
-    @action
-    async def get_user(self, stm, user_id: uuid.UUID) -> User:
+    @action("get-user", resources="user")
+    async def get_user(self, user_id):
         """
         Get user by ID.
         
@@ -296,13 +299,21 @@ class EcomClientAggregate(Aggregate):
         Returns:
             User object or None
         """
-        async with stm.session() as session:
-            stmt = select(User).where(User._id == user_id)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
+        user = await self.statemgr.find_one(
+            "user",
+            where={"_id": user_id, "_deleted": None}
+        )
+        if not user:
+            raise ValueError("User not found")
+        
+        return user
+        # async with stm.session() as session:
+        #     stmt = select(User).where(User._id == user_id)
+        #     result = await session.execute(stmt)
+        #     return result.scalar_one_or_none()
 
     @action("create-session", resources="user")
-    async def create_session(self, user_id: uuid.UUID, session_id: uuid.UUID, source: UserSourceEnum = UserSourceEnum.WEB, email: str = None) -> dict:
+    async def create_session(self, user_id, session_id, source: UserSourceEnum = UserSourceEnum.WEB, email: str = None) -> dict:
         """
         Create a user session.
         
@@ -316,22 +327,6 @@ class EcomClientAggregate(Aggregate):
         Returns:
             Dictionary with session details
         """
-        # async with stm.session() as session:
-        #     user_session = UserSession(
-        #         _id=session_id,
-        #         user_id=user_id,
-        #         source=source,
-        #         telecom__email=email,
-        #         user_identity_id=None
-        #     )
-        #     session.add(user_session)
-        #     await session.commit()
-            
-        #     return {
-        #         "session_id": session_id,
-        #         "user_id": user_id,
-        #         "source": source.value if source else None
-        #     }
         user_session = self.init_resource(
             "user_session",
             _id=session_id,
@@ -347,8 +342,8 @@ class EcomClientAggregate(Aggregate):
             "source": source.value if source else None
         }
 
-    @action
-    async def update_last_login(self, stm, user_id: uuid.UUID) -> None:
+    @action("update-last-login", resources="user")
+    async def update_last_login(self, user_id) -> None:
         """
         Update the last login time for a user.
         
@@ -356,17 +351,16 @@ class EcomClientAggregate(Aggregate):
             stm: State manager
             user_id: User ID
         """
-        async with stm.session() as session:
-            stmt = select(Profile).where(Profile.user_id == user_id)
-            result = await session.execute(stmt)
-            profile = result.scalar_one_or_none()
-            
-            if profile:
-                profile.last_login = datetime.now(timezone.utc)
-                await session.commit()
+        profile = await self.statemgr.find_one(
+            "profile",
+            where={"user_id": user_id, "_deleted": None}
+        )
+        if profile:
+            profile.last_login = datetime.now(timezone.utc)
+            await self.statemgr.update(profile)
 
-    @action
-    async def invalidate_session(self, stm, session_id: uuid.UUID) -> None:
+    @action("invalidate-session", resources="user_session")
+    async def invalidate_session(self, session_id):
         """
         Invalidate a specific user session.
         
@@ -374,16 +368,19 @@ class EcomClientAggregate(Aggregate):
             stm: State manager
             session_id: Session ID to invalidate
         """
-        async with stm.session() as session:
-            stmt = select(UserSession).where(UserSession._id == session_id)
-            result = await session.execute(stmt)
-            user_session = result.scalar_one_or_none()
-            
-            if user_session:
-                await session.delete(user_session)
-                await session.commit()
+        session = await self.statemgr.find_one(
+            "user_session",
+            where={"_id": session_id}
+        )
 
-    @action
+        if not session:
+            raise BadRequestError("AUTH.008", "Session not found")
+
+        await self.statemgr.invalidate(session)
+
+        return session
+
+    @action("invalidate-all-sessions", resources="user_session")
     async def invalidate_all_sessions(self, stm, user_id: uuid.UUID) -> None:
         """
         Invalidate all sessions for a user.

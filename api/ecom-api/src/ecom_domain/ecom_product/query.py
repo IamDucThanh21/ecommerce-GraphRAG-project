@@ -53,6 +53,25 @@ class ProductCategoryListQuery(DomainQueryResource):
     brand_count: Optional[int] = IntegerField("Brand Count", source="brand_count")
     brand_names: Optional[List[str]] = ArrayField("Brand Names", source="brand_names")
 
+@resource("product-brand-list")
+class ProductBrandListQuery(DomainQueryResource):
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_text_search = True
+
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+
+        backend_model = "_product_brand_list"
+        name = "Product Brand List"
+        desc = "Query brands with product line summary data."
+
+    name: Optional[str] = StringField("Brand Name", source="name")
+    description: Optional[str] = StringField("Description", source="description")
+    line_count: Optional[int] = IntegerField("Product Line Count", source="line_count")
+    line_names: Optional[List[str]] = ArrayField("Product Line Names", source="line_names")
 
 @resource("product_brand_line_list")
 class ProductBrandLineListQuery(DomainQueryResource):
