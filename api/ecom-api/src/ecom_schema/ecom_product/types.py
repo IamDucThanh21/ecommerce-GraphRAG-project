@@ -1,19 +1,23 @@
 from enum import Enum
 
+
 class ProductStatusEnum(str, Enum):
     """Product status enumeration."""
-    DRAFT = "DRAFT"
-    ACTIVE = "ACTIVE"
-    INACTIVE = "INACTIVE"
-    OUT_OF_STOCK = "OUT_OF_STOCK"
-    DISCONTINUED = "DISCONTINUED"
-    ARCHIVED = "ARCHIVED"
+    DRAFT = "draft"
+    ACTIVE = "active"
+    DISCONTINUED = "discontinued"
 
-class SpecTypeEnum(str, Enum):
-    """Specification type enumeration."""
-    TEXT = "TEXT"
-    NUMBER = "NUMBER"
-    BOOLEAN = "BOOLEAN"
-    JSON = "JSON"
-    SELECT = "SELECT"
-    MULTISELECT = "MULTISELECT"
+
+class ProductVariantStatusEnum(str, Enum):
+    """Product variant status enumeration."""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    OUT_OF_STOCK = "out_of_stock"
+
+
+class SpecDataTypeEnum(str, Enum):
+    """Specification data type enumeration (for templates)."""
+    TEXT = "text"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    TEXT_LIST = "text_list"

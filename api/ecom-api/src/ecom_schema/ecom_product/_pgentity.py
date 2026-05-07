@@ -341,12 +341,12 @@ def register_pg_entities(allow_flag):
         return
     logger.info('Registering PG entities for ecom_product')
     register_entities([
-        product_category_list_view,
-        product_brand_line_list_view,
-        product_list_view,
-        product_detail_view,
-        product_spec_detail_view,
-        product_review_list_view,
+        # product_category_list_view,
+        # product_brand_line_list_view,
+        # product_list_view,
+        # product_detail_view,
+        # product_spec_detail_view,
+        # product_review_list_view,
     ])
 
 
