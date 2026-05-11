@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from .product_variant import ProductVariant
     from .product_image import ProductImage
     from .product_spec_group import ProductSpecGroup
-    from .promotion import Promotion
-    from .customer_review import CustomerReview
+    # from .promotion import Promotion
+    # from .customer_review import CustomerReview
 
 
 class Product(Base):
@@ -75,11 +75,11 @@ class Product(Base):
     spec_groups: Mapped[List["ProductSpecGroup"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
-    promotions: Mapped[List["Promotion"]] = relationship(
-        back_populates="product", cascade="all, delete-orphan"
-    )
-    reviews: Mapped[List["CustomerReview"]] = relationship(
-        back_populates="product", cascade="all, delete-orphan"
-    )
+    # promotions: Mapped[List["Promotion"]] = relationship(
+    #     back_populates="product", cascade="all, delete-orphan"
+    # )
+    # reviews: Mapped[List["CustomerReview"]] = relationship(
+    #     back_populates="product", cascade="all, delete-orphan"
+    # )
 
 

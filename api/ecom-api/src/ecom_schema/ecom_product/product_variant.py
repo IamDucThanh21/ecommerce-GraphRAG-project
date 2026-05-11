@@ -38,6 +38,7 @@ class ProductVariant(Base):
     base_price: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
     stock_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     attributes: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    tag: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[ProductVariantStatusEnum] = mapped_column(
         SQLEnum(ProductVariantStatusEnum, name="productvariantstatusenum", schema=SCHEMA),
         nullable=False,
