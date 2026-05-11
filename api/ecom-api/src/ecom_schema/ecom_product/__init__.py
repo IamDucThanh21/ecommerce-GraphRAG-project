@@ -22,7 +22,7 @@ from . import (
     product_spec_flat,
     # promotion,
     # customer_review,
-    # _viewmap,  # noqa: F401
+    _viewmap,  # noqa: F401
 )
 
 __all__ = [

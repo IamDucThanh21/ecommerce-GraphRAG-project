@@ -148,9 +148,9 @@ product_brand_list_view = PGView(
 # 2. product_line list inside a brand
 #    Each row is one product_line; aggregates products that belong to it.
 # ---------------------------------------------------------------------------
-product_line_list_view = PGView(
+brand_line_list_view = PGView(
     schema=SCHEMA,
-    signature="_product_line_list",
+    signature="_brand_line_list",
     definition=f"""
     SELECT
         pl._id,
@@ -758,7 +758,7 @@ def register_pg_entities(allow_flag):
     logger.info('Registering PG entities for ecom_product')
     register_entities([
         product_brand_list_view,
-        product_line_list_view,
+        brand_line_list_view,
         product_list_view,
         product_variant_list_view,
         product_detail_view

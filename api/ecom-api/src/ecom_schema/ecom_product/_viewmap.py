@@ -29,8 +29,8 @@ class ProductBrandListView(ViewBase):
     product_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-class ProductLineListView(ViewBase):
-    __tablename__ = "_product_line_list"
+class BrandLineListView(ViewBase):
+    __tablename__ = "_brand_line_list"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     _id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -152,5 +152,3 @@ class ProductDetailView(ViewBase):
     total_stock: Mapped[Optional[int]] = mapped_column(Integer)
     specs: Mapped[Optional[JSON]] = mapped_column(JSON)
     spec_groups: Mapped[Optional[JSON]] = mapped_column(JSON)
-
-
