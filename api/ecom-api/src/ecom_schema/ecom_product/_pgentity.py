@@ -92,9 +92,9 @@ from alembic_utils.replaceable_entity import register_entities
 #     ORDER BY pb.name, pl.name;
 #     """
 # )
-product_brand_list_view = PGView(
+category_brand_list_view = PGView(
     schema=SCHEMA,
-    signature="_product_brand_list",
+    signature="_category_brand_list",
     definition=f"""
     SELECT
         pb._id,
@@ -148,9 +148,9 @@ product_brand_list_view = PGView(
 # 2. product_line list inside a brand
 #    Each row is one product_line; aggregates products that belong to it.
 # ---------------------------------------------------------------------------
-brand_line_list_view = PGView(
+category_brand_line_list_view = PGView(
     schema=SCHEMA,
-    signature="_brand_line_list",
+    signature="_category_brand_line_list",
     definition=f"""
     SELECT
         pl._id,
@@ -175,24 +175,6 @@ brand_line_list_view = PGView(
         )                                                           AS product_count,
         (
             SELECT COALESCE(
-                array_agg(DISTINCT p.name ORDER BY p.name),
-                ARRAY[]::varchar[]
-            )
-            FROM "{SCHEMA}".product AS p
-            WHERE p.line_id  = pl._id
-              AND p._deleted IS NULL
-        )                                                           AS product_names,
-        (
-            SELECT COUNT(DISTINCT pcm.category_id)
-            FROM "{SCHEMA}".product                  AS p
-            JOIN "{SCHEMA}".product_category_mapping AS pcm
-                ON pcm.product_id = p._id
-               AND pcm._deleted IS NULL
-            WHERE p.line_id  = pl._id
-              AND p._deleted IS NULL
-        )                                                           AS category_count,
-        (
-            SELECT COALESCE(
                 array_agg(DISTINCT pc.name ORDER BY pc.name),
                 ARRAY[]::varchar[]
             )
@@ -205,12 +187,86 @@ brand_line_list_view = PGView(
                AND pc._deleted IS NULL
             WHERE p.line_id  = pl._id
               AND p._deleted IS NULL
-        )                                                           AS category_names
+        )                                                           AS category_names,
+        (
+            SELECT pcm.category_id
+            FROM "{SCHEMA}".product                  AS p
+            JOIN "{SCHEMA}".product_category_mapping AS pcm
+                ON pcm.product_id = p._id
+               AND pcm._deleted IS NULL
+               AND pcm.is_primary = TRUE
+            WHERE p.line_id  = pl._id
+              AND p._deleted IS NULL
+            LIMIT 1
+        )                                                         AS category_id
     FROM "{SCHEMA}".product_line  AS pl
     JOIN "{SCHEMA}".product_brand AS pb ON pb._id = pl.brand_id
                                        AND pb._deleted IS NULL
     WHERE pl._deleted IS NULL
     ORDER BY pb.name, pl.name;
+    """
+)
+
+category_brand_series_list_view = PGView(
+    schema=SCHEMA,
+    signature="_category_brand_series_list",
+    definition=f"""
+    SELECT
+        ps._id,
+        ps._created,
+        ps._updated,
+        ps._creator,
+        ps._updater,
+        ps._deleted,
+        ps._etag,
+        ps._realm,
+        ps.name,
+        ps.description,
+        ps.slug,
+        ps.line_id,
+        pl.name                                                     AS line_name,
+        pl.brand_id,
+        pb.name                                                     AS brand_name,
+        pb.logo_url                                                 AS brand_logo_url,
+        (
+            SELECT COUNT(*)
+            FROM "{SCHEMA}".product AS p
+            WHERE p.series_id = ps._id
+              AND p._deleted IS NULL
+        )                                                           AS product_count,
+        (
+            SELECT COALESCE(
+                array_agg(DISTINCT pc.name ORDER BY pc.name),
+                ARRAY[]::varchar[]
+            )
+            FROM "{SCHEMA}".product                  AS p
+            JOIN "{SCHEMA}".product_category_mapping AS pcm
+                ON pcm.product_id  = p._id
+               AND pcm._deleted IS NULL
+            JOIN "{SCHEMA}".product_category         AS pc
+                ON pc._id = pcm.category_id
+               AND pc._deleted IS NULL
+            WHERE p.series_id = ps._id
+              AND p._deleted IS NULL
+        )                                                           AS category_names,
+        (
+            SELECT pcm.category_id
+            FROM "{SCHEMA}".product                  AS p
+            JOIN "{SCHEMA}".product_category_mapping AS pcm
+                ON pcm.product_id = p._id
+               AND pcm._deleted IS NULL
+               AND pcm.is_primary = TRUE
+            WHERE p.series_id = ps._id
+              AND p._deleted IS NULL
+            LIMIT 1
+        )                                                           AS category_id
+    FROM "{SCHEMA}".product_series AS ps
+    JOIN "{SCHEMA}".product_line   AS pl ON pl._id = ps.line_id
+                                        AND pl._deleted IS NULL
+    JOIN "{SCHEMA}".product_brand  AS pb ON pb._id = pl.brand_id
+                                        AND pb._deleted IS NULL
+    WHERE ps._deleted IS NULL
+    ORDER BY pb.name, pl.name, ps.name;
     """
 )
 
@@ -228,7 +284,6 @@ product_list_view = PGView(
         p._etag,
         p._realm,
         p.name,
-        p.description,
         p.slug,
         p.status,
         -- brand
@@ -757,8 +812,9 @@ def register_pg_entities(allow_flag):
         return
     logger.info('Registering PG entities for ecom_product')
     register_entities([
-        product_brand_list_view,
-        brand_line_list_view,
+        category_brand_list_view,
+        category_brand_line_list_view,
+        category_brand_series_list_view,
         product_list_view,
         product_variant_list_view,
         product_detail_view

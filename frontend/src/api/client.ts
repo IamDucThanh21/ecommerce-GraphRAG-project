@@ -45,6 +45,68 @@ export interface SignUpResponse {
   };
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+}
+
+
+export interface CategoryListResponse {
+  status?: string;
+  message?: string;
+  data?: Category[];
+  pagination?: {
+    limit: number;
+    offset: number;
+    page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  logo_url?: string | null;
+  category_name?: string;
+}
+
+export interface CategoryBrandListResponse {
+  status?: string;
+  message?: string;
+  data?: Brand[];
+  pagination?: {
+    limit: number;
+    offset: number;
+    page: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface ProductListRequest {
+  category_id: string;
+  brand_id?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductListResponse {
+  status?: string;
+  message?: string;
+  data?: unknown[];
+  pagination?: unknown;
+}
+
+const encodeQuery = (queryObject: Record<string, unknown>) =>
+  encodeURIComponent(JSON.stringify(queryObject));
+
+
+
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
@@ -77,21 +139,26 @@ class ApiClient {
   private async request<T>(
     method: string,
     endpoint: string,
-    data?: unknown
+    data?: unknown,
+    skipAuth = false
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      Accept: 'application/json',
     };
 
-    if (this.token) {
+    if (data) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    if (!skipAuth && this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
     const options: RequestInit = {
       method,
-      headers,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     };
 
     if (data) {
@@ -143,6 +210,64 @@ class ApiClient {
     }
 
     return response;
+  }
+
+  public async categoryList(): Promise<CategoryListResponse> {
+    return this.request<CategoryListResponse>(
+      'GET',
+      '/ecom-product.category-list/',
+      undefined,
+      true
+    );
+  }
+
+  public async productList(
+    params: ProductListRequest
+  ): Promise<ProductListResponse | unknown[]> {
+
+    const {
+      category_id,
+      brand_id,
+      page = 1,
+      limit = 25,
+    } = params;
+
+    const queryObject: Record<string, unknown> = {};
+
+    if (brand_id) {
+      queryObject.brand_id = brand_id;
+    }
+
+    const queryString =
+      Object.keys(queryObject).length > 0
+        ? `&query=${encodeURIComponent(
+            JSON.stringify(queryObject)
+          )}`
+        : '';
+
+    return this.request<ProductListResponse>(
+      'GET',
+      `/ecom-product.product-list/category_id=${encodeURIComponent(
+        category_id
+      )}/?limit=${limit}&page=${page}${queryString}`,
+      undefined,
+      true
+    );
+  }
+
+  public async categoryBrandList(
+    categoryId: string,
+    page: number = 1,
+    limit: number = 25
+  ): Promise<CategoryBrandListResponse> {
+    return this.request<CategoryBrandListResponse>(
+      'GET',
+      `/ecom-product.category-brand-list/category_id=${encodeURIComponent(
+        categoryId
+      )}/?page=${page}&limit=${limit}`,
+      undefined,
+      true
+    );
   }
 
   public async logOut(): Promise<void> {

@@ -33,7 +33,7 @@ resource = ECOMProductQueryManager.register_resource
 endpoint = ECOMProductQueryManager.register_endpoint
 
 
-@resource("product-category-list")
+@resource("category-list")
 class ProductCategoryListQuery(DomainQueryResource):
     class Meta(DomainQueryResource.Meta):
         include_all = False
@@ -50,32 +50,42 @@ class ProductCategoryListQuery(DomainQueryResource):
     description: Optional[str] = StringField("Description", source="description")
     slug: Optional[int] = IntegerField("Slug", source="slug")
 
-@resource("brand-list")
-class ProductBrandListQuery(DomainQueryResource):
+@resource("category-brand-list")
+class CategoryBrandListQuery(DomainQueryResource):
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {
+            "category_id": scope["category_id"],
+        }
+
     class Meta(DomainQueryResource.Meta):
         include_all = False
         allow_meta_view = True
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        scope_required = scope.CategoryIdScope
 
-        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'category_id')
 
-        backend_model = "product_brand"
+        backend_model = "_category_brand_list"
 
     name: Optional[str] = StringField("Brand Name", source="name")
     description: Optional[str] = StringField("Description", source="description")
     slug: Optional[str] = StringField("Brand Slug", source="slug")
     logo_url: Optional[str] = StringField("Brand Logo URL", source="logo_url")
+    category_id: Optional[str] = StringField("Category ID", source="category_id")
+    category_name: Optional[str] = StringField("Category Name", source="category_name")
 
-@resource("brand-line-list")
+@resource("category-brand-line-list")
 class ProductBrandLineListQuery(DomainQueryResource):
     """DEPRECATED - Use product_line_list instead."""
 
     @classmethod
     def base_query(cls, context, scope):
         return {
-            "brand_id": scope["brand_id"],
+            "category_id": scope["category_id"],
         }
     
     class Meta(DomainQueryResource.Meta):
@@ -84,33 +94,75 @@ class ProductBrandLineListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
-        scope_required = scope.BrandIdScope
+        scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
 
-        backend_model = "_brand_line_list"
+        backend_model = "_category_brand_line_list"
         name = "Product Brand Line List (Deprecated)"
         desc = "Query product brand and product line pairs. DEPRECATED - Use product_line_list."
 
     name: Optional[str] = StringField("Brand Name", source="name")
     description: Optional[str] = StringField("Brand Description", source="description")
-    line_id: Optional[str] = UUIDField("Product Line ID", source="_id")
+    slug: Optional[str] = StringField("Line Slug", source="slug")
     line_name: Optional[str] = StringField("Line Name", source="name")
     brand_id: Optional[str] = UUIDField("Brand ID", source="brand_id")
     brand_name: Optional[str] = StringField("Brand Name", source="brand_name")
     brand_logo_url: Optional[str] = StringField("Brand Logo URL", source="brand_logo_url")
     product_count: Optional[int] = IntegerField("Product Count", source="product_count")
-    slug: Optional[str] = StringField("Line Slug", source="slug")
+    category_id: Optional[str] = UUIDField("Category ID", source="category_id")
 
+@resource("category-brand-series-list")
+class ProductBrandSeriesListQuery(DomainQueryResource):
+    """DEPRECATED - Use product_series_list instead."""
 
-@resource("product-list")
-class ProductListQuery(DomainQueryResource):
+    @classmethod
+    def base_query(cls, context, scope):
+        return {
+            "category_id": scope["category_id"],
+        }
+    
     class Meta(DomainQueryResource.Meta):
         include_all = False
         allow_meta_view = True
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        scope_required = scope.CategoryIdScope
+
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+
+        backend_model = "_category_brand_series_list"
+        name = "Product Brand Series List (Deprecated)"
+        desc = "Query product brand and product series pairs. DEPRECATED - Use product_series_list."
+
+    name: Optional[str] = StringField("Series name", source="name")
+    description: Optional[str] = StringField("Brand Description", source="description")
+    slug: Optional[str] = StringField("Series Slug", source="slug")
+    line_id: Optional[str] = UUIDField("Product Line ID", source="line_id")
+    line_name: Optional[str] = StringField("Line Name", source="line_name")
+    brand_id: Optional[str] = UUIDField("Brand ID", source="brand_id")
+    brand_name: Optional[str] = StringField("Brand Name", source="brand_name")
+    brand_logo_url: Optional[str] = StringField("Brand Logo URL", source="brand_logo_url")
+    product_count: Optional[int] = IntegerField("Product Count", source="product_count")
+    category_id: Optional[str] = UUIDField("Category ID", source="category_id")
+
+@resource("product-list")
+class ProductListQuery(DomainQueryResource):
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {
+            "category_id": scope["category_id"],
+        }
+    
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_text_search = True
+        scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
 
@@ -119,7 +171,6 @@ class ProductListQuery(DomainQueryResource):
         desc = "Query products with brand, line, series and category info."
 
     name: Optional[str] = StringField("Product Name", source="name")
-    description: Optional[str] = StringField("Description", source="description")
     slug: Optional[str] = StringField("Product Slug", source="slug")
     status: Optional[str] = StringField("Product Status", source="status")
     brand_id: Optional[str] = UUIDField("Brand ID", source="brand_id")

@@ -3,21 +3,128 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useEffect, useState, useCallback } from 'react';
 import { Filter, ChevronDown, LayoutGrid, List } from 'lucide-react';
 import { PRODUCTS } from '../data';
 import ProductCard from '../components/ProductCard';
-import { Page } from '../types';
+import { apiClient } from '../api/client';
+import { Page, Product } from '../types';
+
+interface BackendProductListResponse {
+  data?: unknown[];
+  pagination?: unknown;
+}
 
 interface ListingPageProps {
   setPage: (page: Page) => void;
   setProductId: (id: string) => void;
+  categoryId: string;
+  brandId: string | null;
 }
 
-export default function ListingPage({ setPage, setProductId }: ListingPageProps) {
+export default function ListingPage({ setPage, setProductId, categoryId, brandId }: ListingPageProps) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [visibleCount, setVisibleCount] = useState(25);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const handleProductClick = (id: string) => {
     setProductId(id);
     setPage('detail');
   };
+
+  const fetchProducts = useCallback(async (pageNumber: number, append: boolean = false) => {
+    try {
+      const response = await apiClient.productList({
+        category_id: categoryId,
+        brand_id: brandId ?? undefined,
+        page: pageNumber,
+        limit: 25,
+      });
+
+      const list = Array.isArray(response)
+        ? response
+        : (response as BackendProductListResponse)?.data ??
+          (response as any)?.items ??
+          (response as any)?.objects ??
+          [];
+
+      const mappedProducts: Product[] = (list as any[]).map((item) => ({
+        id: item.id,
+        name: item.name || 'Sản phẩm',
+        price: item.price ?? item.base_price ?? 0,
+        originalPrice:
+          item.base_price && item.base_price > (item.price ?? 0)
+            ? item.base_price
+            : undefined,
+        image: item.primary_image_url || item.image || '',
+        category: item.category_name || '',
+        brand: item.brand_name || '',
+        rating: 4,
+        reviewsCount: 10,
+        badges: item.tag ? [item.tag] : item.category_name ? [item.category_name] : undefined,
+        description: item.description ?? '',
+      }));
+
+      if (append) {
+        setProducts(prev => [...prev, ...mappedProducts]);
+      } else {
+        setProducts(mappedProducts);
+      }
+
+      if (mappedProducts.length < 25) {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError('Không thể tải sản phẩm.');
+      if (!append) {
+        setProducts([]);
+      }
+    }
+  }, [categoryId, brandId]);
+
+  useEffect(() => {
+    if (!categoryId) {
+      setProducts([]);
+      setError(null);
+      setLoading(false);
+      setVisibleCount(25);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setVisibleCount(25);
+    setCurrentPage(1);
+    setHasMore(true);
+
+    fetchProducts(1, false).finally(() => {
+      setLoading(false);
+    });
+  }, [categoryId, brandId, fetchProducts]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    const nextPage = page + 1;
+
+    fetchProducts(nextPage, true)
+      .then(() => {
+        setCurrentPage(nextPage);
+      })
+      .finally(() => {
+        setLoadingMore(false);
+      });
+  }, [fetchProducts, hasMore, loadingMore, page]);
+
+  const allProducts = categoryId ? products : PRODUCTS;
+  const displayProducts = categoryId ? allProducts : allProducts.slice(0, visibleCount);
+  const productCount = allProducts.length;
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -70,7 +177,7 @@ export default function ListingPage({ setPage, setProductId }: ListingPageProps)
             {[
               { name: 'Apple', logo: 'https://cdn-icons-png.flaticon.com/512/882/882704.png' },
               { name: 'Samsung', logo: 'https://cdn-icons-png.flaticon.com/512/5969/5969116.png' },
-              { name: 'Xiaomi', logo: 'https://cdn-icons-png.flaticon.com/512/5969/5969134.png' },
+              { name: 'Xiaomi', logo: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22 viewBox=%220 0 40 40%22%3E%3Crect width=%2240%22 height=%2240%22 fill=%22%23000000%22/%3E%3Ctext x=%2220%22 y=%2226%22 font-family=%22Arial,Helvetica,sans-serif%22 font-size=%2214%22 fill=%22%23FFFFFF%22 text-anchor=%22middle%22%3EX%3C/text%3E%3C/svg%3E' },
               { name: 'Oppo', logo: 'https://cdn-icons-png.flaticon.com/512/882/882745.png' },
               { name: 'Realme', logo: 'https://cdn-icons-png.flaticon.com/512/5969/5969106.png' },
               { name: 'Vivo', logo: 'https://cdn-icons-png.flaticon.com/512/882/882760.png' },
@@ -94,7 +201,9 @@ export default function ListingPage({ setPage, setProductId }: ListingPageProps)
             <h1 className="text-4xl font-black tracking-tighter text-zinc-900 mb-1 font-['Inter'] uppercase">Điện thoại</h1>
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-[#FFD194] rounded-full"></div>
-              <p className="text-zinc-400 text-xs font-black uppercase tracking-[0.2em]">{PRODUCTS.length} PREMIUM ITEMS</p>
+              <p className="text-zinc-400 text-xs font-black uppercase tracking-[0.2em]">
+                {productCount} PREMIUM ITEMS
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4 w-full md:w-auto">
@@ -118,21 +227,51 @@ export default function ListingPage({ setPage, setProductId }: ListingPageProps)
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-          {PRODUCTS.map((product) => (
-            <ProductCard 
-              key={product.id} 
-              product={product} 
-              onClick={handleProductClick} 
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-zinc-600">
+            Đang tải sản phẩm...
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+            {error}
+          </div>
+        ) : categoryId && allProducts.length === 0 ? (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-zinc-600">
+            Không có sản phẩm cho danh mục smartphone.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {displayProducts.map((product) => (
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onClick={handleProductClick} 
+              />
+            ))}
+          </div>
+        )}
         
-        <div className="mt-12 flex justify-center">
-          <button className="px-8 py-3 bg-white border-2 border-zinc-900 text-zinc-900 rounded-xl font-bold hover:bg-zinc-900 hover:text-white transition-all">
-            Xem thêm 24 sản phẩm
-          </button>
-        </div>
+        {categoryId && hasMore && !loading && (
+          <div className="mt-12 flex justify-center">
+            <button
+              onClick={handleLoadMore}
+              className="px-8 py-3 bg-white border-2 border-zinc-900 text-zinc-900 rounded-xl font-bold hover:bg-zinc-900 hover:text-white transition-all"
+            >
+              {loadingMore ? 'Đang tải thêm...' : 'Xem thêm 25 sản phẩm'}
+            </button>
+          </div>
+        )}
+
+        {!categoryId && displayProducts.length < allProducts.length && !loading && (
+          <div className="mt-12 flex justify-center">
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 25)}
+              className="px-8 py-3 bg-white border-2 border-zinc-900 text-zinc-900 rounded-xl font-bold hover:bg-zinc-900 hover:text-white transition-all"
+            >
+              Xem thêm 25 sản phẩm
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );

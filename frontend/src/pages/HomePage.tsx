@@ -3,21 +3,218 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChevronRight, Smartphone, Laptop, Tablet, Watch, Bolt, Camera, BatteryFull, LayoutGrid } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  ChevronRight,
+  ChevronLeft,
+  Smartphone,
+  Laptop,
+  Tablet,
+  Watch,
+  Bolt,
+  Camera,
+  BatteryFull,
+  LayoutGrid
+} from 'lucide-react';
 import { PRODUCTS, ACCESSORIES, NEWS } from '../data';
 import ProductCard from '../components/ProductCard';
-import { Page } from '../types';
+import { Page, Product } from '../types';
+import { apiClient, Category, Brand } from '../api/client';
 
 interface HomePageProps {
   setPage: (page: Page) => void;
   setProductId: (id: string) => void;
+  setCategoryId: (id: string) => void;
+  setBrandId: (id: string | null) => void;
 }
 
-export default function HomePage({ setPage, setProductId }: HomePageProps) {
+const SMARTPHONE_CATEGORY_ID = '5e883863-9808-4319-acb7-078e6206798d';
+
+export default function HomePage({ setPage, setProductId, setCategoryId, setBrandId }: HomePageProps) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loadingBrands, setLoadingBrands] = useState(false);  
+
+  const [activeBrandId, setActiveBrandId] = useState<string | null>(null);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  const [currentProductIndex, setCurrentProductIndex] = useState(0);
+
+  const capitalize = (value: string) =>
+    value.charAt(0).toUpperCase() + value.slice(1);
+
   const handleProductClick = (id: string) => {
     setProductId(id);
     setPage('detail');
   };
+
+  const handleSmartphoneQuery = () => {
+    setCategoryId(SMARTPHONE_CATEGORY_ID);
+    setPage('listing');
+  };
+
+  const handleHomepageCategoryClick = (
+    category: Category
+  ) => {
+    setActiveCategoryId(category.id);
+
+    // reset selected brand
+    setActiveBrandId(null);
+  };
+  
+  const handleBrandClick = (brand: Brand) => {
+    setActiveBrandId(brand.id);
+  };
+
+  const handleNextProducts = () => {
+    if (products.length <= 5) return;
+
+    setCurrentProductIndex((prev) =>
+      prev + 1 > products.length - 5
+        ? 0
+        : prev + 1
+    );
+  };
+
+  const handlePrevProducts = () => {
+    if (products.length <= 5) return;
+
+    setCurrentProductIndex((prev) =>
+      prev === 0
+        ? products.length - 5
+        : prev - 1
+    );
+  };
+
+  const visibleProducts = products.slice(
+    currentProductIndex,
+    currentProductIndex + 5
+  );
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+
+        const response = await apiClient.categoryList();
+
+        const list = response.data ?? [];
+
+        setCategories(list);
+
+        // default active tab
+        if (list.length > 0) {
+          setActiveCategoryId(list[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      if (!activeCategoryId) {
+        setBrands([]);
+        return;
+      }
+
+      try {
+        setLoadingBrands(true);
+
+        const response = await apiClient.categoryBrandList(
+          activeCategoryId
+        );
+
+        setBrands(response.data ?? []);
+      } catch (error) {
+        console.error('Failed to load brands:', error);
+        setBrands([]);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+
+    loadBrands();
+  }, [activeCategoryId]);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (!activeCategoryId) {
+        setProducts([]);
+        return;
+      }
+
+      try {
+        setLoadingProducts(true);
+
+        const response = await apiClient.productList({
+          category_id: activeCategoryId,
+          brand_id: activeBrandId ?? undefined,
+          page: 1,
+          limit: 10,
+        });
+
+        const list = Array.isArray(response)
+          ? response
+          : response?.data ?? [];
+
+        const mappedProducts: Product[] = list.map(
+          (item: any) => ({
+            id: item.id,
+            name: item.name || 'Product',
+            price:
+              item.price ??
+              item.base_price ??
+              0,
+            originalPrice:
+              item.base_price &&
+              item.base_price >
+                (item.price ?? 0)
+                ? item.base_price
+                : undefined,
+            image:
+              item.primary_image_url ||
+              item.image ||
+              '',
+            category:
+              item.category_name || '',
+            brand:
+              item.brand_name || '',
+            rating: 4,
+            reviewsCount: 10,
+            badges: item.tag
+              ? [item.tag]
+              : undefined,
+            description:
+              item.description ?? '',
+          })
+        );
+
+        setProducts(mappedProducts);
+      } catch (error) {
+        console.error(
+          'Failed to load products:',
+          error
+        );
+
+        setProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
+  }, [activeCategoryId, activeBrandId]);
 
   return (
     <div className="space-y-12">
@@ -41,7 +238,7 @@ export default function HomePage({ setPage, setProductId }: HomePageProps) {
             ].map((item, idx) => (
               <button 
                 key={idx}
-                onClick={() => setPage('listing')}
+                onClick={() => item.label === 'Smartphone' ? handleSmartphoneQuery() : setPage('listing')}
                 className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-zinc-50 group transition-all"
               >
                 <div className="flex items-center gap-3">
@@ -69,10 +266,10 @@ export default function HomePage({ setPage, setProductId }: HomePageProps) {
                 <p className="text-lg mb-8 opacity-90 font-['Inter'] leading-relaxed">Experience the next generation of power and elegance. Engineered with aerospace-grade titanium.</p>
                 <div className="flex gap-4">
                   <button 
-                    onClick={() => setPage('listing')}
+                    onClick={handleSmartphoneQuery}
                     className="bg-[#FFD194] text-zinc-900 px-8 py-4 rounded-xl font-bold hover:scale-105 active:scale-95 transition-all outline-none shadow-lg shadow-[#FFD194]/20"
                   >
-                    Sở hữu ngay
+                    Xem smartphone
                   </button>
                 </div>
               </div>
@@ -109,23 +306,44 @@ export default function HomePage({ setPage, setProductId }: HomePageProps) {
       {/* Tabs / Filter Row */}
       <section>
         <div className="flex items-center justify-between mb-8 border-b border-zinc-200">
-          <div className="flex gap-8">
-            {['SMARTPHONE', 'LAPTOP', 'TABLET', 'WATCH'].map((tab, idx) => (
-              <button 
-                key={tab}
-                className={`pb-4 font-bold text-sm uppercase tracking-[0.2em] transition-all ${
-                  idx === 0 ? 'text-zinc-900 border-b-2 border-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+            <div className="flex gap-8">
+              {loadingCategories ? (
+                <div className="pb-4 text-sm text-zinc-400">
+                  Loading...
+                </div>
+              ) : (
+                categories.map((category) => {
+                  const isActive = activeCategoryId === category.id;
+
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => handleHomepageCategoryClick(category)}
+                      className={`pb-4 font-bold text-sm uppercase tracking-[0.2em] transition-all ${
+                        isActive
+                          ? 'text-zinc-900 border-b-2 border-zinc-900'
+                          : 'text-zinc-400 hover:text-zinc-600'
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           <button 
-            onClick={() => setPage('listing')}
+            onClick={() => {
+              if (activeCategoryId) {
+                setCategoryId(activeCategoryId);
+              }
+
+              setBrandId(activeBrandId);
+
+              setPage('listing');
+            }}
             className="pb-4 text-xs font-bold text-zinc-400 hover:text-zinc-900 transition-all uppercase tracking-widest"
           >
-            Show All
+            Show all
           </button>
         </div>
 
@@ -149,25 +367,61 @@ export default function HomePage({ setPage, setProductId }: HomePageProps) {
 
         {/* Brand Pills */}
         <div className="flex gap-3 mb-8 flex-wrap">
-          {['Apple', 'Samsung', 'Xiaomi', 'Oppo', 'Realme'].map((brand) => (
-            <button 
-              key={brand}
-              className="px-6 py-2 rounded-full border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-900 hover:text-zinc-900 transition-all text-sm font-medium"
-            >
-              {brand}
-            </button>
-          ))}
+          {loadingBrands ? (
+            <div className="text-sm text-zinc-400">
+              Loading brands...
+            </div>
+          ) : (
+            brands.map((brand) => (
+              <button
+                key={brand.id}
+                onClick={() => handleBrandClick(brand)}
+                className={`px-6 py-2 rounded-full border transition-all text-sm font-medium ${
+                  activeBrandId === brand.id
+                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-900 hover:text-zinc-900'
+                }`}
+              >
+                {capitalize(brand.name)}
+              </button>
+            ))
+          )}
         </div>
 
-        {/* Product Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {PRODUCTS.slice(0, 5).map((product) => (
-            <ProductCard 
-              key={product.id} 
-              product={product} 
-              onClick={handleProductClick} 
-            />
-          ))}
+        {/* Product Carousel */}
+        <div className="relative">
+          {/* Left Arrow */}
+          <button
+            onClick={handlePrevProducts}
+            className="absolute left-[-20px] top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white border border-zinc-200 shadow-lg flex items-center justify-center hover:bg-zinc-900 hover:text-white transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Products */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {loadingProducts ? (
+              <div className="col-span-full text-center py-10 text-zinc-400">
+                Loading products...
+              </div>
+            ) : (
+              visibleProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onClick={handleProductClick}
+                />
+              ))
+            )}
+          </div>
+
+          {/* Right Arrow */}
+          <button
+            onClick={handleNextProducts}
+            className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white border border-zinc-200 shadow-lg flex items-center justify-center hover:bg-zinc-900 hover:text-white transition-all"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
       </section>
 

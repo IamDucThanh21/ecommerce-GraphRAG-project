@@ -18,6 +18,8 @@ import { AuthProvider } from './contexts/AuthContext';
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
 
   // Scroll to top on page change
   useEffect(() => {
@@ -27,15 +29,36 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <HomePage setPage={setCurrentPage} setProductId={setSelectedProductId} />;
+        return (
+          <HomePage
+            setPage={setCurrentPage}
+            setProductId={setSelectedProductId}
+            setCategoryId={setSelectedCategoryId}
+            setBrandId={setSelectedBrandId}
+          />
+        );
       case 'listing':
-        return <ListingPage setPage={setCurrentPage} setProductId={setSelectedProductId} />;
+        return (
+          <ListingPage
+            setPage={setCurrentPage}
+            setProductId={setSelectedProductId}
+            categoryId={selectedCategoryId}
+            brandId={selectedBrandId}
+          />
+        );
       case 'detail':
         return <DetailPage productId={selectedProductId} setPage={setCurrentPage} />;
       case 'auth':
         return <AuthPage setPage={setCurrentPage} />;
       default:
-        return <HomePage setPage={setCurrentPage} setProductId={setSelectedProductId} />;
+        return (
+          <HomePage
+            setPage={setCurrentPage}
+            setProductId={setSelectedProductId}
+            setCategoryId={setSelectedCategoryId}
+            setBrandId={setSelectedBrandId}
+          />
+        );
     }
   };
 

@@ -8,8 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from . import SCHEMA, ViewBase
 
 
-class ProductBrandListView(ViewBase):
-    __tablename__ = "_product_brand_list"
+class CategoryBrandListView(ViewBase):
+    __tablename__ = "_category_brand_list"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     _id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -29,8 +29,8 @@ class ProductBrandListView(ViewBase):
     product_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-class BrandLineListView(ViewBase):
-    __tablename__ = "_brand_line_list"
+class CategoryBrandLineListView(ViewBase):
+    __tablename__ = "_category_brand_line_list"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
     _id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
@@ -48,11 +48,32 @@ class BrandLineListView(ViewBase):
     brand_name: Mapped[Optional[str]] = mapped_column(String(255))
     brand_logo_url: Mapped[Optional[str]] = mapped_column(String(2048))
     product_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    product_names: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
-    category_count: Mapped[int] = mapped_column(Integer, nullable=False)
     category_names: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+    category_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
 
+class CategoryBrandSeriesListView(ViewBase):
+    __tablename__ = "_category_brand_series_list"
+    __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
 
+    _id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    _created: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
+    _updated: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
+    _creator: Mapped[Optional[str]] = mapped_column(String(255))
+    _updater: Mapped[Optional[str]] = mapped_column(String(255))
+    _deleted: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))
+    _etag: Mapped[Optional[str]] = mapped_column(String(64))
+    _realm: Mapped[Optional[str]] = mapped_column(String(255))
+    name: Mapped[Optional[str]] = mapped_column(String(255))
+    description: Mapped[Optional[str]] = mapped_column(String(2048))
+    slug: Mapped[Optional[str]] = mapped_column(String(255))
+    line_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
+    line_name: Mapped[Optional[str]] = mapped_column(String(255))
+    brand_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
+    brand_name: Mapped[Optional[str]] = mapped_column(String(255))
+    brand_logo_url: Mapped[Optional[str]] = mapped_column(String(2048))
+    product_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    category_names: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
+    category_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
 
 class ProductListView(ViewBase):
     __tablename__ = "_product_list"
@@ -67,7 +88,7 @@ class ProductListView(ViewBase):
     _etag: Mapped[Optional[str]] = mapped_column(String(64))
     _realm: Mapped[Optional[str]] = mapped_column(String(255))
     name: Mapped[Optional[str]] = mapped_column(String(255))
-    description: Mapped[Optional[str]] = mapped_column(String(2048))
+    # description: Mapped[Optional[str]] = mapped_column(String(2048))
     slug: Mapped[Optional[str]] = mapped_column(String(255))
     status: Mapped[Optional[str]] = mapped_column(String(64))
     brand_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
