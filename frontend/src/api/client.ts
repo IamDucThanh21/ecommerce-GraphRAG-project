@@ -93,6 +93,9 @@ export interface ProductListRequest {
   brand_id?: string;
   page?: number;
   limit?: number;
+  sort?: string;
+  price_min?: number;
+  price_max?: number;
 }
 
 export interface ProductListResponse {
@@ -230,6 +233,9 @@ class ApiClient {
       brand_id,
       page = 1,
       limit = 25,
+      sort,
+      price_min,
+      price_max,
     } = params;
 
     const queryObject: Record<string, unknown> = {};
@@ -238,18 +244,31 @@ class ApiClient {
       queryObject.brand_id = brand_id;
     }
 
+    if (price_min !== undefined) {
+      queryObject.price_gte = price_min;
+    }
+
+    if (price_max !== undefined) {
+      queryObject.price_lte = price_max;
+    }
+
     const queryString =
       Object.keys(queryObject).length > 0
         ? `&query=${encodeURIComponent(
             JSON.stringify(queryObject)
           )}`
         : '';
+    
+    const sortString =
+      sort && sort.trim() !== ''
+        ? `&sort=${encodeURIComponent(sort)}`
+        : '';
 
     return this.request<ProductListResponse>(
       'GET',
       `/ecom-product.product-list/category_id=${encodeURIComponent(
         category_id
-      )}/?limit=${limit}&page=${page}${queryString}`,
+      )}/?limit=${limit}&page=${page}${sortString}${queryString}`,
       undefined,
       true
     );

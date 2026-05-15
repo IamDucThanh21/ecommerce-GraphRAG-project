@@ -44,6 +44,7 @@ function AppContent() {
             setProductId={setSelectedProductId}
             categoryId={selectedCategoryId}
             brandId={selectedBrandId}
+            setBrandId={setSelectedBrandId}
           />
         );
       case 'detail':

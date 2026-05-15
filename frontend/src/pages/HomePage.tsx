@@ -59,8 +59,8 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
   };
 
   const handleHomepageCategoryClick = (
-    category: Category
-  ) => {
+      category: Category
+    ) => {
     setActiveCategoryId(category.id);
 
     // reset selected brand
@@ -380,9 +380,9 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
                   activeBrandId === brand.id
                     ? 'border-zinc-900 bg-zinc-900 text-white'
                     : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-900 hover:text-zinc-900'
-                }`}
-              >
-                {capitalize(brand.name)}
+                  }`}
+                >
+                  {capitalize(brand.name)}
               </button>
             ))
           )}
