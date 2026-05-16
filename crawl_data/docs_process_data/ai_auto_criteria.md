@@ -76,6 +76,7 @@
 | **GPU tier** | `GPU` | Adreno 644 | Rule-based | `5` Adreno 750+, Apple 6-core Pro GPU, Mali-G925 / `4` Adreno 730–740, Mali-G715 / `3` Adreno 644–700, Mali-G68 / `2` Adreno 610–642, Mali-G57 / `1` Adreno ≤ 505, Mali-G52 trở xuống |
 | **Hệ điều hành** | `Hệ điều hành` | Android 14 | Rule-based | Categorical: Android 12 / 13 / 14 / 15 / iOS 17 / iOS 18... |
 | **Công nghệ tản nhiệt** | description | Không đề cập | LLM | `5` Vapor Chamber lớn có thương hiệu (gaming phone) / `4` Vapor Chamber tiêu chuẩn / `3` Heat Pipe / `2` Graphite sheet / `1` Không đề cập (mặc định cơ bản) |
+| **Bypass charging** | description | Không | LLM | Boolean: `Có` nếu tìm thấy keyword "bypass charging" / "direct charging" / "sạc trực tiếp khi chơi game". Chủ yếu có ở ROG Phone, RedMagic |
 
 ---
 
@@ -145,9 +146,11 @@
 | **Công nghệ âm thanh** | description | Loa kép, Dolby Atmos | LLM | `5` Stereo + Dolby Atmos + tuning hãng âm thanh (Harman/AKG/Bose) / `4` Stereo + Dolby Atmos / `3` Stereo không Dolby / `2` Mono + Dolby Atmos / `1` Mono thường |
 | **Hỗ trợ AI** | description | "Điện thoại AI" chung | LLM | `5` AI on-device mạnh + ≥ 4 tính năng rõ ràng (Circle to Search, Live Translate, Generative Edit...) / `4` AI on-device + 2–3 tính năng / `3` AI camera + 1–2 tính năng phần mềm / `2` Chỉ AI camera (Nightography, Super HDR) / `1` Không đề cập tính năng AI cụ thể |
 | **Phụ kiện trong hộp** | description | Không đề cập | LLM | `5` Củ sạc + cáp + tai nghe + ốp lưng / `4` Củ sạc + cáp + ốp lưng / `3` Củ sạc + cáp / `2` Chỉ cáp (không củ sạc) / `1` Chỉ hướng dẫn / Không rõ |
-| **Action Button** | description + spec | Không | LLM | Boolean: `Có` / `Không` |
-| **Camera Button** | description + spec | Không | LLM | Boolean: `Có` / `Không` |
+| **Action Button** | description + spec | Không | LLM | Boolean: `Có` / `Không` — keyword: "Action Button", "nút tác vụ tùy chỉnh" |
+| **Camera Button** | description + spec | Không | LLM | Boolean: `Có` / `Không` — keyword: "Camera Button", "nút chụp ảnh vật lý" |
 | **Hỗ trợ thẻ nhớ** | `Khe cắm thẻ nhớ` | microSDXC | Rule-based | Categorical: `Không` / `microSD` / `microSDXC` |
+| **Desktop Mode / DeX** | description + tên sản phẩm | Không | LLM | Boolean: `Có` / `Không` — keyword: "Samsung DeX", "Desktop Mode", "MIUI+", "kết nối màn hình ngoài" |
+| **Nút SOS / khẩn cấp** | description + spec | Không | LLM | Boolean: `Có` / `Không` — keyword: "SOS", "Emergency SOS", "nút khẩn cấp" |
 
 ---
 
@@ -159,16 +162,19 @@
 | Thông tin chung | 6 | 5 | 1 |
 | Camera | 9 | 6 | 3 |
 | Màn hình | 8 | 5 | 3 |
-| Hiệu năng | 6 | 4 | 2 |
-| Pin | 4 | 2 | 2 |
+| Hiệu năng | 7 | 4 | 3 |
+| Pin | 5 | 2 | 3 |
 | Kết nối | 9 | 7 | 2 |
 | Độ bền | 1 | 0 | 1 |
 | Cấu tạo | 7 | 5 | 2 |
 | Bảo mật | 3 | 2 | 1 |
-| Thông tin khác | 6 | 1 | 5 |
-| **Tổng** | **61** | **39** | **22** |
+| Thông tin khác | 9 | 1 | 8 |
+| **Tổng** | **66** | **39** | **27** |
 
 ---
 
-> ⚠ **Lưu ý normalize điểm**: Tất cả điểm 1–5 là điểm tuyệt đối theo toàn thị trường.  
-> Chatbot cần normalize trong cùng phân khúc giá khi recommend — Snapdragon 7 Gen 1 là 3/5 toàn thị trường nhưng là chip tốt nhất trong tầm 6–10tr, cần ưu tiên hiển thị cho user ở phân khúc đó.
+> ⚠ **Lưu ý normalize điểm**: Tất cả điểm 1–5 là điểm **tuyệt đối** theo toàn thị trường.  
+> Chatbot cần normalize trong cùng phân khúc giá khi recommend — Snapdragon 7 Gen 1 là 3/5 toàn thị trường nhưng là chip tốt nhất tầm 6–10tr, cần được ưu tiên hiển thị cho user ở phân khúc đó.
+
+> ⚠ **Tiêu chí KHÔNG có trong file này** (cần lookup ngoài → xem file `manual_criteria.md`):  
+> `Gaming score` (AnTuTu) / `Thời gian sạc thực tế` / `Pin thực tế (giờ)` / `Use case` / `Đối tượng người dùng` / `Độ giữ giá` / `Thời hạn cập nhật phần mềm`
