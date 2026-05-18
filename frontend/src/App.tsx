@@ -42,13 +42,14 @@ function AppContent() {
           <ListingPage
             setPage={setCurrentPage}
             setProductId={setSelectedProductId}
+            setCategoryId={setSelectedCategoryId}
             categoryId={selectedCategoryId}
             brandId={selectedBrandId}
             setBrandId={setSelectedBrandId}
           />
         );
       case 'detail':
-        return <DetailPage productId={selectedProductId} setPage={setCurrentPage} />;
+        return <DetailPage productId={selectedProductId} categoryId={selectedCategoryId} setPage={setCurrentPage} />;
       case 'auth':
         return <AuthPage setPage={setCurrentPage} />;
       default:

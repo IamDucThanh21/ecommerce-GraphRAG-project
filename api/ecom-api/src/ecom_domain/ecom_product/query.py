@@ -231,12 +231,20 @@ class ProductVariantListQuery(DomainQueryResource):
 
 @resource("product-detail")
 class ProductDetailQuery(DomainQueryResource):
+
+    @classmethod
+    def base_query(cls, context, scope):
+        return {
+            "category_id": scope["category_id"],
+        }
+    
     class Meta(DomainQueryResource.Meta):
         include_all = False
         allow_meta_view = True
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
 
@@ -258,7 +266,7 @@ class ProductDetailQuery(DomainQueryResource):
     series_id: Optional[str] = UUIDField("Product Series ID", source="series_id")
     series_name: Optional[str] = StringField("Series Name", source="series_name")
     series_slug: Optional[str] = StringField("Series Slug", source="series_slug")
-    primary_category_id: Optional[str] = UUIDField("Primary Category ID", source="primary_category_id")
+    category_id: Optional[str] = UUIDField("Primary Category ID", source="category_id")
     primary_category_name: Optional[str] = StringField("Primary Category Name", source="primary_category_name")
     category_names: Optional[List[str]] = ArrayField("Category Names", source="category_names")
     primary_image_url: Optional[str] = StringField("Primary Image URL", source="primary_image_url")

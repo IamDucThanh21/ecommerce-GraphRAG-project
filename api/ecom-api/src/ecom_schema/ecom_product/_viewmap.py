@@ -162,7 +162,7 @@ class ProductDetailView(ViewBase):
     series_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
     series_name: Mapped[Optional[str]] = mapped_column(String(255))
     series_slug: Mapped[Optional[str]] = mapped_column(String(255))
-    primary_category_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
+    category_id: Mapped[Optional[UUID]] = mapped_column(UUID(as_uuid=True))
     primary_category_name: Mapped[Optional[str]] = mapped_column(String(255))
     category_names: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
     primary_image_url: Mapped[Optional[str]] = mapped_column(String(2048))

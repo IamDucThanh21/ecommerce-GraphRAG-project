@@ -473,7 +473,7 @@ product_detail_view = PGView(
               AND pcm.is_primary  = TRUE
               AND pcm._deleted IS NULL
             LIMIT 1
-        )                                                           AS primary_category_id,
+        )                                                           AS category_id,
         (
             SELECT pc.name
             FROM "{SCHEMA}".product_category_mapping AS pcm

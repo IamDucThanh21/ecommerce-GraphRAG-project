@@ -18,12 +18,13 @@ interface BackendProductListResponse {
 interface ListingPageProps {
   setPage: (page: Page) => void;
   setProductId: (id: string) => void;
+  setCategoryId: (id: string) => void;
   categoryId: string;
   brandId: string | null;
   setBrandId: (id: string | null) => void;
 }
 
-export default function ListingPage({ setPage, setProductId, categoryId, brandId, setBrandId }: ListingPageProps) {
+export default function ListingPage({ setPage, setProductId, setCategoryId, categoryId, brandId, setBrandId }: ListingPageProps) {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(false);  
   // const [brandId, setBrandId] = useState<string | null>(null);
@@ -71,8 +72,16 @@ export default function ListingPage({ setPage, setProductId, categoryId, brandId
     max?: number;
   } | null>(null);
 
-  const handleProductClick = (id: string) => {
+  const handleProductClick = (
+    id: string,
+    categoryId?: string
+  ) => {
     setProductId(id);
+
+    if (categoryId) {
+      setCategoryId(categoryId);
+    }
+
     setPage('detail');
   };
 
@@ -120,6 +129,7 @@ export default function ListingPage({ setPage, setProductId, categoryId, brandId
         (list as any[])
           .map((item) => ({
             id: item.id,
+            categoryId: item.category_id,
 
             name:
               item.name ||

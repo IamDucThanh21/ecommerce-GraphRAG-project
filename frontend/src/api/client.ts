@@ -289,6 +289,47 @@ class ApiClient {
     );
   }
 
+  public async productDetail(
+    categoryId: string,
+    productId: string
+  ): Promise<ProductDetailResponse> {
+    return this.request<ProductDetailResponse>(
+      'GET',
+      `/ecom-product.product-detail/category_id=${encodeURIComponent(
+        categoryId
+      )}/${encodeURIComponent(productId)}`,
+      undefined,
+      true
+    );
+  }
+
+  // async productDetail(
+  //   categoryId: string,
+  //   productId: string
+  // ) {
+  //   const encodedScope = encodeURIComponent(
+  //     `category_id=${categoryId}`
+  //   );
+
+  //   const response = await fetch(
+  //     `${BASE_URL}/ecom-product.product-detail/${encodedScope}/${productId}`,
+  //     {
+  //       method: 'GET',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //     }
+  //   );
+
+  //   if (!response.ok) {
+  //     throw new Error(
+  //       'Failed to fetch product detail'
+  //     );
+  //   }
+
+  //   return response.json();
+  // }
+
   public async logOut(): Promise<void> {
     const userId = localStorage.getItem('user_id');
     if (userId) {
@@ -307,3 +348,49 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
+
+export interface ProductDetailSpecValue {
+  key: string;
+  label: string;
+  value_text: string | null;
+  value_number: number | null;
+  value_boolean: boolean | null;
+  value_unit: string | null;
+  is_filterable: boolean;
+  sort_order: number;
+}
+
+export interface ProductDetailSpecGroup {
+  group_id: string;
+  group_name: string;
+  sort_order: number;
+  values: ProductDetailSpecValue[];
+}
+
+export interface ProductDetailResponse {
+  id: string;
+  created: string;
+  updated: string | null;
+  name: string;
+  description: string;
+  slug: string;
+  status: string;
+
+  brand_id: string;
+  brand_name: string;
+  brand_slug: string;
+  brand_logo_url: string | null;
+
+  category_id: string;
+  primary_category_name: string;
+
+  primary_image_url: string | null;
+  image_urls: string[];
+
+  variant_count: number;
+  price_min: number;
+  price_max: number;
+  total_stock: number;
+
+  spec_groups: ProductDetailSpecGroup[];
+}

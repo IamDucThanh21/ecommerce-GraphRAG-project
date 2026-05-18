@@ -3,95 +3,452 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
-import { Star, ShieldCheck, Truck, RotateCcw, Heart, Share2, ChevronRight, ChevronDown, ChevronUp, Maximize2, MessageSquare } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Star, ShieldCheck, Truck, RotateCcw, Heart, Share2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Maximize2, MessageSquare } from 'lucide-react';
 import { PRODUCTS } from '../data';
 import { Page } from '../types';
 import ProductCard from '../components/ProductCard';
 
+import { apiClient } from '../api/client';
+
 interface DetailPageProps {
   productId: string;
+  categoryId: string;
   setPage: (page: Page) => void;
 }
 
-export default function DetailPage({ productId, setPage }: DetailPageProps) {
-  const product = PRODUCTS.find((p) => p.id === productId) || PRODUCTS[0];
-  const [showAllSpecs, setShowAllSpecs] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+export default function DetailPage({ productId, categoryId, setPage }: DetailPageProps) {
+  // const product = PRODUCTS.find((p) => p.id === productId) || PRODUCTS[0];
+  const [showAllSpecs, setShowAllSpecs] =
+  useState(false);
 
-  const fullSpecs = [
-    { label: 'Màn hình', value: '6.1 inch, LTPO Super Retina XDR OLED, 120Hz' },
-    { label: 'Chipset', value: 'Apple A17 Pro (3 nm)' },
-    { label: 'CPU', value: 'Hexa-core (2x3.78 GHz + 4x2.11 GHz)' },
-    { label: 'GPU', value: 'Apple GPU (6-core graphics)' },
-    { label: 'Camera sau', value: '48MP (Chính) + 12MP (Tele) + 12MP (Ultra wide)' },
-    { label: 'Camera trước', value: '12MP, f/1.9, 23mm (wide)' },
-    { label: 'RAM', value: '8GB' },
-    { label: 'Pin', value: 'Li-Ion 3274 mAh, Sạc 50% trong 30p' },
-    { label: 'Hệ điều hành', value: 'iOS 17' },
-    { label: 'Khối lượng', value: '187 g (6.60 oz)' },
-    { label: 'SIM', value: 'Nano-SIM và eSIM' },
-    { label: 'Cổng sạc', value: 'USB Type-C 3.0' },
-    { label: 'Kháng nước', value: 'IP68 (độ sâu 6m trong 30p)' }
-  ];
+  const [selectedSpecGroup, setSelectedSpecGroup] =
+  useState(0);
 
-  const displayedSpecs = showAllSpecs ? fullSpecs : fullSpecs.slice(0, 10);
+  const [
+    isDescriptionExpanded,
+    setIsDescriptionExpanded,
+  ] = useState(false);
 
-  const reviews = [
-    { 
-      id: 1, 
-      user: 'Hoàng Anh', 
-      rating: 5, 
-      date: '2 ngày trước', 
-      comment: 'Máy rất mượt, camera chụp đêm xuất sắc. Rất hài lòng với dịch vụ của WiseTech.',
-      replies: [
-        { id: 101, user: 'Admin WiseTech', date: '1 ngày trước', comment: 'Cảm ơn bạn đã tin tưởng ủng hộ WiseTech ạ! Chúc bạn có trải nghiệm tuyệt vời với iPhone 15 Pro.' }
-      ]
-    },
-    { 
-      id: 2, 
-      user: 'Minh Tuấn', 
-      rating: 4, 
-      date: '1 tuần trước', 
-      comment: 'Hiệu năng tốt nhưng pin dùng bình thường. Thiết kế titan nhẹ hơn hẳn các đời trước.',
-      replies: []
+  const [product, setProduct] =
+    useState<any>(null);
+
+  const [
+    selectedImageIndex,
+    setSelectedImageIndex,
+  ] = useState(0);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    if (
+      showAllSpecs &&
+      product?.spec_groups?.length
+    ) {
+      setSelectedSpecGroup(0);
     }
+  }, [showAllSpecs, product]);
+
+  /* -----------------------------
+    Product Images
+  ----------------------------- */
+  const productImages =
+    product?.image_urls
+      ?.filter(
+        (url: string) =>
+          url &&
+          /\.(jpg|jpeg|png|webp)$/i.test(
+            url
+          )
+      )
+      .slice(0, 6) ?? [];
+
+  /* -----------------------------
+    Current Image
+  ----------------------------- */
+  const currentImage =
+    productImages[
+      selectedImageIndex
+    ] ??
+    product?.primary_image_url ??
+    '';
+
+  /* -----------------------------
+    Image Navigation
+  ----------------------------- */
+  const handlePrevImage = () => {
+    if (productImages.length === 0)
+      return;
+
+    setSelectedImageIndex(
+      (prev) =>
+        prev === 0
+          ? productImages.length - 1
+          : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    if (productImages.length === 0)
+      return;
+
+    setSelectedImageIndex(
+      (prev) =>
+        prev ===
+        productImages.length - 1
+          ? 0
+          : prev + 1
+    );
+  };
+
+  /* -----------------------------
+    Static Specs
+  ----------------------------- */
+  const fullSpecs = [
+    {
+      label: 'Màn hình',
+      value:
+        '6.1 inch, LTPO Super Retina XDR OLED, 120Hz',
+    },
+    {
+      label: 'Chipset',
+      value:
+        'Apple A17 Pro (3 nm)',
+    },
+    {
+      label: 'CPU',
+      value:
+        'Hexa-core (2x3.78 GHz + 4x2.11 GHz)',
+    },
+    {
+      label: 'GPU',
+      value:
+        'Apple GPU (6-core graphics)',
+    },
+    {
+      label: 'Camera sau',
+      value:
+        '48MP (Chính) + 12MP (Tele) + 12MP (Ultra wide)',
+    },
+    {
+      label: 'Camera trước',
+      value:
+        '12MP, f/1.9, 23mm (wide)',
+    },
+    {
+      label: 'RAM',
+      value: '8GB',
+    },
+    {
+      label: 'Pin',
+      value:
+        'Li-Ion 3274 mAh, Sạc 50% trong 30p',
+    },
+    {
+      label:
+        'Hệ điều hành',
+      value: 'iOS 17',
+    },
+    {
+      label:
+        'Khối lượng',
+      value:
+        '187 g (6.60 oz)',
+    },
+    {
+      label: 'SIM',
+      value:
+        'Nano-SIM và eSIM',
+    },
+    {
+      label:
+        'Cổng sạc',
+      value:
+        'USB Type-C 3.0',
+    },
+    {
+      label:
+        'Kháng nước',
+      value:
+        'IP68 (độ sâu 6m trong 30p)',
+    },
   ];
+
+  const displayedSpecs =
+    showAllSpecs
+      ? fullSpecs
+      : fullSpecs.slice(0, 10);
+
+  /* -----------------------------
+    Reviews Mock Data
+  ----------------------------- */
+  const reviews = [
+    {
+      id: 1,
+      user: 'Hoàng Anh',
+      rating: 5,
+      date: '2 ngày trước',
+      comment:
+        'Máy rất mượt, camera chụp đêm xuất sắc. Rất hài lòng với dịch vụ của WiseTech.',
+      replies: [
+        {
+          id: 101,
+          user:
+            'Admin WiseTech',
+          date:
+            '1 ngày trước',
+          comment:
+            'Cảm ơn bạn đã tin tưởng ủng hộ WiseTech ạ!',
+        },
+      ],
+    },
+    {
+      id: 2,
+      user:
+        'Minh Tuấn',
+      rating: 4,
+      date:
+        '1 tuần trước',
+      comment:
+        'Hiệu năng tốt nhưng pin dùng bình thường.',
+      replies: [],
+    },
+  ];
+
+  /* -----------------------------
+    Load Product Detail
+  ----------------------------- */
+  useEffect(() => {
+    if (
+      !productId ||
+      !categoryId
+    ) {
+      return;
+    }
+
+    const loadProduct =
+      async () => {
+        try {
+          setLoading(true);
+          setError(null);
+
+          const response =
+            await apiClient.productDetail(
+              categoryId,
+              productId
+            );
+
+          console.log(
+            'Product detail:',
+            response
+          );
+
+          setProduct(response);
+        } catch (err) {
+          console.error(
+            'Failed to load product detail:',
+            err
+          );
+
+          setError(
+            'Không thể tải chi tiết sản phẩm.'
+          );
+        } finally {
+          setLoading(false);
+        }
+      };
+
+    loadProduct();
+  }, [productId, categoryId]);
+
+  /* -----------------------------
+    Reset Image
+  ----------------------------- */
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [product?.id]);
+
+  /* -----------------------------
+    Loading / Error
+  ----------------------------- */
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        Đang tải sản phẩm...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center py-20 text-red-500">
+        {error}
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="flex justify-center py-20">
+        Đang tải sản phẩm...
+      </div>
+    );
+  }
+
+  
+
+  /* -----------------------------
+    Safe Product Data
+  ----------------------------- */
+  const displayProduct = {
+    ...product,
+    rating:
+      product.rating ??
+      4.5,
+
+    reviewsCount:
+      product.reviewsCount ??
+      0,
+
+    originalPrice:
+      product.price_max &&
+      product.price_max >
+        product.price_min
+        ? product.price_max
+        : null,
+  };
 
   return (
+    <>   
+    
     <div className="space-y-16">
       {/* Spec Popup Modal */}
       {showAllSpecs && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-zinc-900/60 backdrop-blur-sm" onClick={() => setShowAllSpecs(false)}></div>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden relative z-10 flex flex-col">
-            <div className="p-8 border-b border-zinc-100 flex justify-between items-center">
-              <h2 className="text-xl font-black uppercase tracking-widest text-zinc-900">Chi tiết thông số kỹ thuật</h2>
-              <button 
-                onClick={() => setShowAllSpecs(false)}
-                className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
+          
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() =>
+              setShowAllSpecs(false)
+            }
+          />
+
+          {/* Modal */}
+          <div className="relative z-10 bg-white w-full max-w-6xl max-h-[88vh] rounded-[32px] shadow-2xl overflow-hidden flex flex-col">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-200 shrink-0">
+              <h2 className="text-xl font-black uppercase tracking-widest text-zinc-900">
+                Thông số kỹ thuật
+              </h2>
+
+              <button
+                onClick={() =>
+                  setShowAllSpecs(false)
+                }
+                className="w-10 h-10 rounded-full hover:bg-zinc-100 flex items-center justify-center transition"
               >
-                <ChevronDown className="w-6 h-6 rotate-180" />
+                <ChevronUp className="w-5 h-5 text-zinc-700" />
               </button>
             </div>
-            <div className="p-8 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                {fullSpecs.map((spec, idx) => (
-                  <div key={idx} className="flex flex-col gap-1 pb-4 border-b border-zinc-50 group hover:border-zinc-900 transition-colors">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{spec.label}</span>
-                    <span className="text-sm font-bold text-zinc-900">{spec.value}</span>
-                  </div>
-                ))}
+
+            {/* Spec Groups Navigation */}
+            <div className="border-b border-zinc-200 px-8 py-5 bg-zinc-50">
+              <div className="flex flex-wrap gap-3">
+                {product?.spec_groups?.map(
+                  (group: any, idx: number) => (
+                    <button
+                      key={group.group_id}
+                      onClick={() =>
+                        setSelectedSpecGroup(idx)
+                      }
+                      className={`
+                        px-5 py-2.5 rounded-2xl
+                        text-sm font-semibold
+                        transition-all duration-200
+                        border
+                        ${
+                          selectedSpecGroup === idx
+                            ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-zinc-900/10'
+                            : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400 hover:bg-zinc-100'
+                        }
+                      `}
+                    >
+                      {group.group_name}
+                    </button>
+                  )
+                )}
               </div>
+            </div>
+
+            {/* Selected Group Content */}
+            <div className="overflow-y-auto p-8">
+              {product?.spec_groups?.[
+                selectedSpecGroup
+              ] && (
+                <div>
+                  <h3 className="text-3xl font-bold text-zinc-900 mb-6">
+                    {
+                      product
+                        .spec_groups[
+                        selectedSpecGroup
+                      ]
+                        .group_name
+                    }
+                  </h3>
+
+                  <div className="rounded-2xl border border-zinc-200 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {product.spec_groups[
+                          selectedSpecGroup
+                        ].values?.map(
+                          (
+                            spec: any
+                          ) => (
+                            <tr
+                              key={
+                                spec.key
+                              }
+                              className="border-b border-zinc-200 last:border-0"
+                            >
+                              {/* Label */}
+                              <td className="w-[30%] bg-zinc-50 px-6 py-5 text-zinc-700 font-medium align-top">
+                                {
+                                  spec.label
+                                }
+                              </td>
+
+                              {/* Value */}
+                              <td className="px-6 py-5 text-zinc-900 whitespace-pre-line leading-7">
+                                {spec.value_text ||
+                                  spec.value_number ||
+                                  spec.value_boolean?.toString() ||
+                                  '-'}
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
+
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
         <button onClick={() => setPage('home')} className="hover:text-zinc-900 uppercase tracking-wider">Home</button>
         <ChevronRight className="w-3 h-3" />
-        <button onClick={() => setPage('listing')} className="hover:text-zinc-900 uppercase tracking-wider">{product.category}</button>
+        <button onClick={() => setPage('listing')} className="hover:text-zinc-900 uppercase tracking-wider">{product.primary_category_name}</button>
         <ChevronRight className="w-3 h-3" />
         <span className="text-zinc-900 uppercase tracking-wider truncate max-w-[200px]">{product.name}</span>
       </nav>
@@ -99,19 +456,87 @@ export default function DetailPage({ productId, setPage }: DetailPageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         {/* Left: Gallery */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="aspect-[4/3] rounded-3xl bg-zinc-50 border border-zinc-100 flex items-center justify-center p-12 overflow-hidden group">
-            <img 
-              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 mix-blend-multiply" 
-              src={product.image} 
-              alt={product.name} 
-            />
-          </div>
-          <div className="grid grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className={`aspect-square rounded-2xl bg-zinc-50 border cursor-pointer hover:border-[#FFD194] transition-all flex items-center justify-center overflow-hidden p-2 ${i === 0 ? 'border-zinc-900' : 'border-zinc-100'}`}>
-                <img className="w-full h-full object-contain mix-blend-multiply" src={product.image} alt={product.name} />
+          {/* Main Image */}
+          <div className="relative aspect-[4/3] rounded-3xl bg-zinc-50 border border-zinc-100 overflow-hidden group">
+            
+            {/* Previous Button */}
+            {productImages.length > 1 && (
+              <button
+                onClick={handlePrevImage}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm border border-zinc-200 shadow-lg flex items-center justify-center hover:scale-105 hover:bg-white transition-all active:scale-95"
+              >
+                <ChevronLeft className="w-5 h-5 text-zinc-700" />
+              </button>
+            )}
+
+            {/* Product Image */}
+            <div className="w-full h-full flex items-center justify-center p-12">
+              <img
+                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700 mix-blend-multiply"
+                src={currentImage}
+                alt={product.name}
+                onError={(e) => {
+                  e.currentTarget.src =
+                    product.primary_image_url;
+                }}
+              />
+            </div>
+
+            {/* Next Button */}
+            {productImages.length > 1 && (
+              <button
+                onClick={handleNextImage}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm border border-zinc-200 shadow-lg flex items-center justify-center hover:scale-105 hover:bg-white transition-all active:scale-95"
+              >
+                <ChevronRight className="w-5 h-5 text-zinc-700" />
+              </button>
+            )}
+
+            {/* Image Counter */}
+            {productImages.length > 1 && (
+              <div className="absolute bottom-4 right-4 bg-zinc-900/80 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm">
+                {selectedImageIndex + 1} /{" "}
+                {productImages.length}
               </div>
-            ))}
+            )}
+          </div>
+
+          {/* Thumbnail Images */}
+          <div className="grid grid-cols-6 gap-4">
+            {productImages.map(
+              (image: string, index: number) => (
+                <button
+                  key={index}
+                  onClick={() =>
+                    setSelectedImageIndex(index)
+                  }
+                  className={`
+                    aspect-square rounded-2xl
+                    bg-zinc-50 border
+                    overflow-hidden p-2
+                    transition-all duration-200
+                    hover:border-zinc-900
+                    hover:scale-[1.02]
+                    ${
+                      selectedImageIndex ===
+                      index
+                        ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                        : "border-zinc-200"
+                    }
+                  `}
+                >
+                  <img
+                    className="w-full h-full object-contain mix-blend-multiply"
+                    src={image}
+                    alt={`${product.name}-${index}`}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        product.primary_image_url;
+                    }}
+                  />
+                </button>
+              )
+            )}
           </div>
         </div>
 
@@ -122,15 +547,20 @@ export default function DetailPage({ productId, setPage }: DetailPageProps) {
               <span className="text-[#ba1a1a] font-black text-xs uppercase tracking-[0.2em]">New Arrival</span>
               <div className="flex items-center gap-1 text-[#FFD700]">
                 <Star className="w-4 h-4 fill-current" />
-                <span className="text-zinc-900 font-bold text-sm">{product.rating}</span>
-                <span className="text-zinc-400 font-medium text-sm">({product.reviewsCount} reviews)</span>
+                <span className="text-zinc-900 font-bold text-sm">{displayProduct.rating}</span>
+                <span className="text-zinc-400 font-medium text-sm">({displayProduct.reviewsCount} reviews)</span>
               </div>
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-zinc-900 mb-4">{product.name}</h1>
             <div className="flex items-end gap-3 mb-6">
-              <span className="text-3xl font-black text-zinc-900">{product.price.toLocaleString('vi-VN')}₫</span>
-              {product.originalPrice && (
-                <span className="text-zinc-400 text-lg line-through pb-1">{product.originalPrice.toLocaleString('vi-VN')}₫</span>
+              <span className="text-3xl font-black text-zinc-900">
+                {displayProduct.price_min?.toLocaleString('vi-VN')}₫
+              </span>
+
+              {displayProduct.originalPrice && (
+                <span className="text-zinc-400 text-lg line-through pb-1">
+                  {displayProduct.originalPrice.toLocaleString('vi-VN')}₫
+                </span>
               )}
             </div>
           </div>
@@ -198,40 +628,62 @@ export default function DetailPage({ productId, setPage }: DetailPageProps) {
           <h2 className="text-xl font-black uppercase tracking-widest text-zinc-900 mb-6 flex items-center gap-3">
             Mô tả sản phẩm
           </h2>
-          <div className={`relative ${!isDescriptionExpanded ? 'max-h-[600px] overflow-hidden' : ''}`}>
-            <div className="prose prose-zinc max-w-none text-zinc-600 leading-relaxed space-y-6 font-['Inter']">
-              <p>
-                {product.description || 'iPhone 15 Pro là chiếc iPhone đầu tiên sở hữu thiết kế cấp độ hàng không vũ trụ, sử dụng cùng loại hợp kim được dùng cho tàu vũ trụ thực hiện các sứ mệnh lên Sao Hỏa.'}
-              </p>
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHr9oP0v_V2K_o-W_O-D8F_d-yW6h-D-9-5-B-1-W-9-5-B-1-W-9-5-B-k-7-8-9" alt="Design" className="w-full rounded-3xl" />
-              <p>
-                Titan có tỷ lệ sức bền trên trọng lượng tốt nhất trong số các loại kim loại, tạo nên những mẫu máy Pro nhẹ nhất từ trước đến nay của chúng tôi. Bạn sẽ nhận ra sự khác biệt ngay khi cầm máy lên.
-              </p>
-              <h3 className="text-xl font-bold text-zinc-900 mt-8">Chip A17 Pro. Bước tiến khổng lồ về hiệu năng.</h3>
-              <p>
-                Đây là con chip hoàn toàn mới, mang lại khả năng đồ họa tốt nhất từ trước đến nay trên iPhone. Trải nghiệm chơi game di động sẽ chân thực và sống động hơn bao giờ hết, với môi trường chi tiết và các nhân vật thực tế hơn.
-              </p>
+
+          <div
+            className={`relative ${
+              !isDescriptionExpanded
+                ? 'max-h-[600px] overflow-hidden'
+                : ''
+            }`}
+          >
+            <div className="prose prose-zinc max-w-none">
+              <div
+                className="text-zinc-600 leading-8 whitespace-pre-line font-['Inter'] text-[15px]"
+              >
+                {product?.description ||
+                  'Chưa có mô tả sản phẩm.'}
+              </div>
             </div>
-            {!isDescriptionExpanded && (
-              <div className="absolute bottom-0 left-0 w-full h-40 bg-gradient-to-t from-white to-transparent flex items-end justify-center pb-4">
-                <button 
-                  onClick={() => setIsDescriptionExpanded(true)}
-                  className="px-6 py-2 bg-white border border-zinc-200 rounded-full font-bold text-sm shadow-lg hover:bg-zinc-50 flex items-center gap-2"
-                >
-                  Xem thêm <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            {isDescriptionExpanded && (
-              <div className="flex justify-center mt-6">
-                <button 
-                  onClick={() => setIsDescriptionExpanded(false)}
-                  className="px-6 py-2 bg-white border border-zinc-200 rounded-full font-bold text-sm hover:bg-zinc-50 flex items-center gap-2"
-                >
-                  Thu gọn <ChevronUp className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+
+            {/* Gradient overlay + expand button */}
+            {!isDescriptionExpanded &&
+              product?.description &&
+              product.description.length >
+                500 && (
+                <div className="absolute bottom-0 left-0 w-full h-40 bg-gradient-to-t from-white to-transparent flex items-end justify-center pb-4">
+                  <button
+                    onClick={() =>
+                      setIsDescriptionExpanded(
+                        true
+                      )
+                    }
+                    className="px-6 py-2 bg-white border border-zinc-200 rounded-full font-bold text-sm shadow-lg hover:bg-zinc-50 flex items-center gap-2 transition"
+                  >
+                    Xem thêm
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+            {/* Collapse button */}
+            {isDescriptionExpanded &&
+              product?.description &&
+              product.description.length >
+                500 && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={() =>
+                      setIsDescriptionExpanded(
+                        false
+                      )
+                    }
+                    className="px-6 py-2 bg-white border border-zinc-200 rounded-full font-bold text-sm hover:bg-zinc-50 flex items-center gap-2 transition"
+                  >
+                    Thu gọn
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
           </div>
         </section>
 
@@ -241,19 +693,49 @@ export default function DetailPage({ productId, setPage }: DetailPageProps) {
             <h2 className="text-lg font-black uppercase tracking-widest text-zinc-900 mb-8 pb-4 border-b border-zinc-200">
               Thông số kỹ thuật
             </h2>
+
+            {/* Preview Specs */}
             <div className="space-y-4">
-              {fullSpecs.slice(0, 10).map((spec, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 border-b border-zinc-200 last:border-0 group">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{spec.label}</span>
-                  <span className="text-xs font-bold text-zinc-900 text-right max-w-[200px]">{spec.value}</span>
-                </div>
-              ))}
+              {product?.spec_groups
+                ?.slice(0, 2)
+                .flatMap(
+                  (
+                    group: any
+                  ) => group.values
+                )
+                .slice(0, 8)
+                .map(
+                  (
+                    spec: any,
+                    idx: number
+                  ) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-start py-3 border-b border-zinc-200 last:border-0"
+                    >
+                      <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                        {spec.label}
+                      </span>
+
+                      <span className="text-sm font-medium text-zinc-900 text-right max-w-[220px] line-clamp-2">
+                        {spec.value_text ||
+                          spec.value_number ||
+                          '-'}
+                      </span>
+                    </div>
+                  )
+                )}
             </div>
-            <button 
-              onClick={() => setShowAllSpecs(true)}
+
+            {/* Button */}
+            <button
+              onClick={() =>
+                setShowAllSpecs(true)
+              }
               className="w-full mt-8 py-3 bg-white border border-zinc-200 rounded-xl font-bold text-xs uppercase tracking-widest text-zinc-900 hover:bg-zinc-100 transition-all flex items-center justify-center gap-2"
             >
-              Xem thông số chi tiết <Maximize2 className="w-3 h-3" />
+              Xem thông số chi tiết
+              <Maximize2 className="w-3 h-3" />
             </button>
           </div>
         </aside>
@@ -264,7 +746,7 @@ export default function DetailPage({ productId, setPage }: DetailPageProps) {
         <div className="w-full max-w-2xl px-4 lg:px-0">
           <div className="flex items-center justify-between mb-12">
             <h2 className="text-3xl font-black uppercase tracking-tighter text-zinc-900 flex items-center gap-3">
-              Reviews <span className="text-zinc-300">({product.reviewsCount})</span>
+              Reviews <span className="text-zinc-300">({displayProduct.reviewsCount})</span>
             </h2>
           </div>
 
@@ -381,5 +863,6 @@ export default function DetailPage({ productId, setPage }: DetailPageProps) {
         </div>
       </section>
     </div>
+    </>
   );
 }

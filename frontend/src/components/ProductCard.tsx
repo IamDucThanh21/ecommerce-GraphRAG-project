@@ -9,14 +9,14 @@ import { Product } from '../types';
 interface ProductCardProps {
   key?: string | number;
   product: Product;
-  onClick: (id: string) => void;
+  onClick: (id: string, categoryId?: string) => void;
 }
 
 export default function ProductCard({ product, onClick }: ProductCardProps) {
   return (
     <div 
       className="bg-white rounded-2xl p-4 shadow-[0_10px_30px_-15px_rgba(51,51,51,0.04)] relative group hover:-translate-y-1 transition-all duration-300 border border-transparent hover:border-zinc-100 cursor-pointer"
-      onClick={() => onClick(product.id)}
+      onClick={() => onClick(product.id, product.categoryId)}
     >
       <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
         {product.badges?.map((badge, idx) => (
