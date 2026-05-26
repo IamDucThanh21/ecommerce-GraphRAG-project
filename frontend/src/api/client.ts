@@ -303,32 +303,20 @@ class ApiClient {
     );
   }
 
-  // async productDetail(
-  //   categoryId: string,
-  //   productId: string
-  // ) {
-  //   const encodedScope = encodeURIComponent(
-  //     `category_id=${categoryId}`
-  //   );
-
-  //   const response = await fetch(
-  //     `${BASE_URL}/ecom-product.product-detail/${encodedScope}/${productId}`,
-  //     {
-  //       method: 'GET',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //     }
-  //   );
-
-  //   if (!response.ok) {
-  //     throw new Error(
-  //       'Failed to fetch product detail'
-  //     );
-  //   }
-
-  //   return response.json();
-  // }
+  public async productVariantList(
+    productId: string,
+    page: number = 1,
+    limit: number = 25
+  ): Promise<ProductVariantListResponse> {
+    return this.request<ProductVariantListResponse>(
+      'GET',
+      `/ecom-product.product-variant-list/product_id%3D${encodeURIComponent(
+        productId
+      )}/?limit=${limit}&page=${page}`,
+      undefined,
+      true
+    );
+  }
 
   public async logOut(): Promise<void> {
     const userId = localStorage.getItem('user_id');
@@ -393,4 +381,45 @@ export interface ProductDetailResponse {
   total_stock: number;
 
   spec_groups: ProductDetailSpecGroup[];
+}
+
+export interface ProductVariant {
+  id: string;
+  created: string;
+  updated: string | null;
+
+  product_id: string;
+  product_name: string;
+  product_slug: string;
+  product_status: string;
+
+  sku: string;
+
+  price: number;
+  base_price: number;
+
+  stock_quantity: number;
+  status: string;
+  tag: string | null;
+
+  attributes: {
+    color?: string;
+    [key: string]: unknown;
+  };
+
+  primary_image_url: string | null;
+  image_urls: string[];
+
+  specs: Record<string, unknown> | null;
+}
+
+export interface ProductVariantListResponse {
+  data: ProductVariant[];
+  pagination: {
+    limit: number;
+    offset: number;
+    page: number;
+    total: number;
+    pages: number;
+  };
 }

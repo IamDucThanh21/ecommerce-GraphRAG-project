@@ -9,7 +9,7 @@ import { PRODUCTS } from '../data';
 import { Page } from '../types';
 import ProductCard from '../components/ProductCard';
 
-import { apiClient } from '../api/client';
+import { apiClient, ProductVariant } from '../api/client';
 
 interface DetailPageProps {
   productId: string;
@@ -24,6 +24,14 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
 
   const [selectedSpecGroup, setSelectedSpecGroup] =
   useState(0);
+
+  const [variants, setVariants] =
+  useState<ProductVariant[]>([]);
+
+  const [selectedVariant, setSelectedVariant] =
+    useState<ProductVariant | null>(
+      null
+    );
 
   const [
     isDescriptionExpanded,
@@ -269,7 +277,29 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
     Reset Image
   ----------------------------- */
   useEffect(() => {
-    setSelectedImageIndex(0);
+    if (!product?.id) return;
+
+    const fetchVariants = async () => {
+      try {
+        const res =
+          await apiClient.productVariantList(
+            product.id
+          );
+
+        setVariants(res.data || []);
+
+        setSelectedVariant(
+          res.data?.[0] || null
+        );
+      } catch (error) {
+        console.error(
+          'Failed to load variants:',
+          error
+        );
+      }
+    };
+
+    fetchVariants();
   }, [product?.id]);
 
   /* -----------------------------
@@ -299,7 +329,7 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
     );
   }
 
-  
+
 
   /* -----------------------------
     Safe Product Data
@@ -568,15 +598,76 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
           {/* Configuration Options */}
           <div className="space-y-6">
             <div>
-              <h4 className="font-bold text-xs uppercase tracking-widest text-zinc-400 mb-3">Chọn màu sắc</h4>
-              <div className="flex gap-3">
-                {['#444748', '#dcdad6', '#fdd093', '#2b3031'].map((color, idx) => (
-                  <button 
-                    key={idx}
-                    style={{ backgroundColor: color }}
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${idx === 0 ? 'border-zinc-900 ring-2 ring-zinc-900/10 ring-offset-2' : 'border-transparent'}`}
-                  />
-                ))}
+              <h4 className="font-bold text-xs uppercase tracking-widest text-zinc-400 mb-3">
+                Chọn màu sắc
+              </h4>
+
+              <div className="grid grid-cols-3 gap-2">
+                {variants.map((variant) => {
+                  const isSelected =
+                    selectedVariant?.id ===
+                    variant.id;
+
+                  return (
+                    <button
+                      key={variant.id}
+                      onClick={() =>
+                        setSelectedVariant(
+                          variant
+                        )
+                      }
+                      className={`
+                        relative flex items-center gap-2
+                        rounded-xl border
+                        p-2 h-[72px]
+                        text-left transition-all
+                        overflow-hidden
+                        ${
+                          isSelected
+                            ? 'border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900/10'
+                            : 'border-zinc-200 hover:border-zinc-400 bg-white'
+                        }
+                      `}
+                    >
+                      {/* Product Image */}
+                      <div className="w-12 h-12 shrink-0 rounded-lg bg-zinc-50 border border-zinc-100 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={
+                            variant.primary_image_url
+                          }
+                          alt={
+                            variant.attributes
+                              ?.color
+                          }
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[11px] font-bold text-zinc-900 truncate leading-tight">
+                          Màu{' '}
+                          {variant.attributes
+                            ?.color || ''}
+                        </span>
+
+                        <span className="text-[10px] text-zinc-500 mt-1">
+                          Còn lại:{' '}
+                          {
+                            variant.stock_quantity
+                          }
+                        </span>
+                      </div>
+
+                      {/* Selected check */}
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-zinc-900 text-white flex items-center justify-center text-[9px]">
+                          ✓
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
