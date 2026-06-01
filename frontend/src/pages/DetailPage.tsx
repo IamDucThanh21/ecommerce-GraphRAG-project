@@ -34,6 +34,18 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
     );
 
   const [
+    userSelectedVariant,
+    setUserSelectedVariant,
+  ] = useState(false);
+
+  const [
+    previewVariantImage,
+    setPreviewVariantImage,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
     isDescriptionExpanded,
     setIsDescriptionExpanded,
   ] = useState(false);
@@ -72,18 +84,38 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
           /\.(jpg|jpeg|png|webp)$/i.test(
             url
           )
-      )
-      .slice(0, 6) ?? [];
-
+      ) ?? [];
   /* -----------------------------
     Current Image
   ----------------------------- */
   const currentImage =
+    previewVariantImage ||
     productImages[
       selectedImageIndex
-    ] ??
-    product?.primary_image_url ??
+    ] ||
+    product?.primary_image_url ||
     '';
+  
+  useEffect(() => {
+    if (
+      !userSelectedVariant ||
+      !selectedVariant
+    ) {
+      return;
+    }
+
+    const variantImage =
+      selectedVariant
+        .primary_image_url ||
+      selectedVariant.image_urls?.[0];
+
+    if (!variantImage) return;
+
+    setSelectedImageIndex(0);
+  }, [
+    selectedVariant,
+    userSelectedVariant,
+  ]);
 
   /* -----------------------------
     Image Navigation
@@ -532,40 +564,112 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
           </div>
 
           {/* Thumbnail Images */}
-          <div className="grid grid-cols-6 gap-4">
-            {productImages.map(
-              (image: string, index: number) => (
-                <button
-                  key={index}
-                  onClick={() =>
-                    setSelectedImageIndex(index)
-                  }
-                  className={`
-                    aspect-square rounded-2xl
-                    bg-zinc-50 border
-                    overflow-hidden p-2
-                    transition-all duration-200
-                    hover:border-zinc-900
-                    hover:scale-[1.02]
-                    ${
-                      selectedImageIndex ===
-                      index
-                        ? "border-zinc-900 ring-2 ring-zinc-900/10"
-                        : "border-zinc-200"
+          <div className="relative">
+            {/* Prev Thumbnail Button */}
+            {productImages.length > 6 && (
+              <button
+                onClick={() => {
+                  const container = document.getElementById(
+                    "thumbnail-scroll"
+                  );
+                  if (container) {
+                    container.scrollBy({
+                      left: -500,
+                      behavior: "smooth",
+                    });
+
+                    // if at beginning -> go end
+                    if (container.scrollLeft <= 10) {
+                      container.scrollTo({
+                        left: container.scrollWidth,
+                        behavior: "smooth",
+                      });
                     }
-                  `}
-                >
-                  <img
-                    className="w-full h-full object-contain mix-blend-multiply"
-                    src={image}
-                    alt={`${product.name}-${index}`}
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        product.primary_image_url;
+                  }
+                }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white border border-zinc-200 shadow-md flex items-center justify-center hover:scale-105"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Thumbnail Container */}
+            <div
+              id="thumbnail-scroll"
+              className="flex gap-4 overflow-x-auto scrollbar-hide px-12 scroll-smooth"
+            >
+              {productImages.map(
+                (image: string, index: number) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setSelectedImageIndex(index);
+
+                      // back to normal gallery image
+                      setPreviewVariantImage(null);
                     }}
-                  />
-                </button>
-              )
+                    className={`
+                      shrink-0 w-24 h-24 rounded-2xl
+                      bg-zinc-50 border
+                      overflow-hidden p-2
+                      transition-all duration-200
+                      hover:border-zinc-900
+                      hover:scale-[1.02]
+                      ${
+                        selectedImageIndex === index
+                          ? "border-zinc-900 ring-2 ring-zinc-900/10"
+                          : "border-zinc-200"
+                      }
+                    `}
+                  >
+                    <img
+                      className="w-full h-full object-contain mix-blend-multiply"
+                      src={image}
+                      alt={`${product.name}-${index}`}
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          product.primary_image_url;
+                      }}
+                    />
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Next Thumbnail Button */}
+            {productImages.length > 6 && (
+              <button
+                onClick={() => {
+                  const container = document.getElementById(
+                    "thumbnail-scroll"
+                  );
+
+                  if (container) {
+                    container.scrollBy({
+                      left: 500,
+                      behavior: "smooth",
+                    });
+
+                    // if near end -> go back first
+                    const maxScroll =
+                      container.scrollWidth -
+                      container.clientWidth;
+
+                    if (
+                      container.scrollLeft >=
+                      maxScroll - 10
+                    ) {
+                      container.scrollTo({
+                        left: 0,
+                        behavior: "smooth",
+                      });
+                    }
+                  }
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white border border-zinc-200 shadow-md flex items-center justify-center hover:scale-105"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             )}
           </div>
         </div>
@@ -611,11 +715,15 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
                   return (
                     <button
                       key={variant.id}
-                      onClick={() =>
-                        setSelectedVariant(
-                          variant
-                        )
-                      }
+                      onClick={() => {
+                        setSelectedVariant(variant);
+
+                        setPreviewVariantImage(
+                          variant.primary_image_url ||
+                          variant.image_urls?.[0] ||
+                          null
+                        );
+                      }}
                       className={`
                         relative flex items-center gap-2
                         rounded-xl border
@@ -671,7 +779,7 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
               </div>
             </div>
 
-            <div>
+            {/* <div>
               <h4 className="font-bold text-xs uppercase tracking-widest text-zinc-400 mb-3">Dung lượng</h4>
               <div className="flex gap-3">
                 {['128GB', '256GB', '512GB', '1TB'].map((storage, idx) => (
@@ -683,7 +791,7 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
                   </button>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex gap-4 pt-4">

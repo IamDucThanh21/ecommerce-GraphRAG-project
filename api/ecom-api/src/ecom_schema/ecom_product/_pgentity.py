@@ -393,7 +393,6 @@ product_variant_list_view = PGView(
                 SELECT pi.image_url
                 FROM "{SCHEMA}".product_image AS pi
                 WHERE pi.variant_id = pv._id
-                  AND pi.is_primary  = TRUE
                   AND pi._deleted IS NULL
                 LIMIT 1
             ),
