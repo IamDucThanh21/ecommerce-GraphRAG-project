@@ -34,8 +34,12 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
       <div className="aspect-square bg-zinc-50 rounded-xl overflow-hidden mb-4 p-4 relative">
         <img 
           className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 mix-blend-multiply" 
-          src={product.image} 
+          src={product.image || null} 
           alt={product.name}
+          onError={(e) => {
+            e.currentTarget.src =
+              '/placeholder-product.png';
+          }}
         />
         <button className="absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
           <Heart className="w-4 h-4 text-zinc-400 hover:text-[#ba1a1a]" />

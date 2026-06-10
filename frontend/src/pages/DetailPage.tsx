@@ -95,6 +95,57 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
     ] ||
     product?.primary_image_url ||
     '';
+
+
+  const [relatedProducts, setRelatedProducts] =
+    useState<any[]>([]);
+
+  const [
+    loadingRelatedProducts,
+    setLoadingRelatedProducts,
+  ] = useState(false);
+
+  const [
+    currentRelatedIndex,
+    setCurrentRelatedIndex,
+  ] = useState(0);
+
+  const handleNextRelatedProducts =
+    () => {
+      if (
+        relatedProducts.length <= 5
+      )
+        return;
+
+      setCurrentRelatedIndex(
+        (prev) =>
+          prev + 1 >
+          relatedProducts.length - 5
+            ? 0
+            : prev + 1
+      );
+    };
+
+  const handlePrevRelatedProducts =
+    () => {
+      if (
+        relatedProducts.length <= 5
+      )
+        return;
+
+      setCurrentRelatedIndex(
+        (prev) =>
+          prev === 0
+            ? relatedProducts.length - 5
+            : prev - 1
+      );
+    };
+
+  const visibleRelatedProducts =
+    relatedProducts.slice(
+      currentRelatedIndex,
+      currentRelatedIndex + 5
+    );
   
   useEffect(() => {
     if (
@@ -222,6 +273,97 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
     showAllSpecs
       ? fullSpecs
       : fullSpecs.slice(0, 10);
+
+  useEffect(() => {
+      const loadRelatedProducts =
+        async () => {
+          if (
+            !product?.category_id
+          ) {
+            setRelatedProducts([]);
+            return;
+          }
+  
+          try {
+            setLoadingRelatedProducts(
+              true
+            );
+  
+            const response =
+              await apiClient.productList({
+                category_id:
+                  product.category_id,
+                page: 1,
+                limit: 20,
+              });
+  
+            const list =
+              Array.isArray(response)
+                ? response
+                : response?.data ?? [];
+  
+            const mappedProducts =
+              list
+                // remove current product
+                .filter(
+                  (item: any) =>
+                    item.id !==
+                    product.id
+                )
+                .map((item: any) => ({
+                  id: item.id,
+                  name:
+                    item.name ||
+                    'Product',
+                  price:
+                    item.price ??
+                    item.base_price ??
+                    0,
+                  originalPrice:
+                    item.base_price &&
+                    item.base_price >
+                      (item.price ??
+                        0)
+                      ? item.base_price
+                      : undefined,
+                  image:
+                    item.primary_image_url ||
+                    '',
+                  category:
+                    item.category_name ||
+                    '',
+                  brand:
+                    item.brand_name ||
+                    '',
+                  rating: 4,
+                  reviewsCount: 10,
+                  description:
+                    item.description ??
+                    '',
+                }));
+  
+            setRelatedProducts(
+              mappedProducts
+            );
+          } catch (error) {
+            console.error(
+              'Failed to load related products:',
+              error
+            );
+  
+            setRelatedProducts([]);
+          } finally {
+            setLoadingRelatedProducts(
+              false
+            );
+          }
+        };
+  
+      loadRelatedProducts();
+    }, [
+      product?.id,
+      product?.category_id,
+    ]);
 
   /* -----------------------------
     Reviews Mock Data
@@ -688,14 +830,23 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
             <h1 className="text-4xl font-bold tracking-tight text-zinc-900 mb-4">{product.name}</h1>
             <div className="flex items-end gap-3 mb-6">
               <span className="text-3xl font-black text-zinc-900">
-                {displayProduct.price_min?.toLocaleString('vi-VN')}₫
+                {!displayProduct.price_min ||
+                displayProduct.price_min <= 0
+                  ? 'Giá liên hệ'
+                  : `${displayProduct.price_min.toLocaleString(
+                      'vi-VN'
+                    )}₫`}
               </span>
 
-              {displayProduct.originalPrice && (
-                <span className="text-zinc-400 text-lg line-through pb-1">
-                  {displayProduct.originalPrice.toLocaleString('vi-VN')}₫
-                </span>
-              )}
+              {!!displayProduct.price_min &&
+                displayProduct.price_min > 0 &&
+                displayProduct.originalPrice && (
+                  <span className="text-zinc-400 text-lg line-through pb-1">
+                    {displayProduct.originalPrice.toLocaleString(
+                      'vi-VN'
+                    )}₫
+                  </span>
+                )}
             </div>
           </div>
 
@@ -1047,18 +1198,58 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
 
       {/* Related Products */}
       <section className="pb-20">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 mb-10">Bạn có thể cũng sẽ thích</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {PRODUCTS.filter(p => p.id !== product.id).slice(0, 5).map((p) => (
-            <ProductCard 
-              key={p.id} 
-              product={p} 
-              onClick={(id) => {
-                setPage('detail');
-                // Scroll handle by App.tsx
-              }} 
-            />
-          ))}
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 mb-10">
+          Sản phẩm cùng danh mục
+        </h2>
+
+        <div className="relative">
+          {/* Left Arrow */}
+          <button
+            onClick={
+              handlePrevRelatedProducts
+            }
+            className="absolute left-[-20px] top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white border border-zinc-200 shadow-lg flex items-center justify-center hover:bg-zinc-900 hover:text-white transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Products */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {loadingRelatedProducts ? (
+              <div className="col-span-full text-center py-10 text-zinc-400">
+                Loading products...
+              </div>
+            ) : (
+              visibleRelatedProducts.map(
+                (p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    onClick={(id) => {
+                      window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth',
+                      });
+
+                      setPage(
+                        'detail'
+                      );
+                    }}
+                  />
+                )
+              )
+            )}
+          </div>
+
+          {/* Right Arrow */}
+          <button
+            onClick={
+              handleNextRelatedProducts
+            }
+            className="absolute right-[-20px] top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white border border-zinc-200 shadow-lg flex items-center justify-center hover:bg-zinc-900 hover:text-white transition-all"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
       </section>
     </div>
