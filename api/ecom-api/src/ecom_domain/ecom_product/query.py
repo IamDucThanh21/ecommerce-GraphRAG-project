@@ -41,6 +41,7 @@ class ProductCategoryListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
 
@@ -65,6 +66,7 @@ class CategoryBrandListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
         scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater', 'category_id')
@@ -94,6 +96,7 @@ class ProductBrandLineListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
         scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
@@ -128,6 +131,7 @@ class ProductBrandSeriesListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
         scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
@@ -162,6 +166,7 @@ class ProductListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
         scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
@@ -197,7 +202,6 @@ class ProductVariantListQuery(DomainQueryResource):
         return {
             "product_id": scope["product_id"],
         }
-    
 
     class Meta(DomainQueryResource.Meta):
         include_all = False
@@ -205,6 +209,7 @@ class ProductVariantListQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
         scope_required = scope.ProductIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
@@ -244,6 +249,7 @@ class ProductDetailQuery(DomainQueryResource):
         allow_item_view = True
         allow_list_view = True
         allow_text_search = True
+        auth_required = False
         scope_required = scope.CategoryIdScope
 
         excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
@@ -277,3 +283,40 @@ class ProductDetailQuery(DomainQueryResource):
     total_stock: Optional[int] = IntegerField("Total Stock", source="total_stock")
     specs: Optional[dict] = JSONField("Specs", source="specs")
     spec_groups: Optional[dict] = JSONField("Spec Groups", source="spec_groups")
+
+
+@resource("product-list-search")
+class ProductListQuery(DomainQueryResource):
+    
+    class Meta(DomainQueryResource.Meta):
+        include_all = False
+        allow_meta_view = True
+        allow_item_view = True
+        allow_list_view = True
+        allow_text_search = True
+        auth_required = False
+
+        excluded_fields = ('_creator', '_deleted', '_etag', '_updater')
+
+        backend_model = "_product_list"
+        name = "Product List"
+        desc = "Query products by text search in nav bar."
+
+    name: Optional[str] = StringField("Product Name", source="name")
+    slug: Optional[str] = StringField("Product Slug", source="slug")
+    status: Optional[str] = StringField("Product Status", source="status")
+    brand_id: Optional[str] = UUIDField("Brand ID", source="brand_id")
+    brand_name: Optional[str] = StringField("Brand Name", source="brand_name")
+    line_id: Optional[str] = UUIDField("Product Line ID", source="line_id")
+    line_name: Optional[str] = StringField("Product Line Name", source="line_name")
+    series_id: Optional[str] = UUIDField("Product Series ID", source="series_id")
+    series_name: Optional[str] = StringField("Product Series Name", source="series_name")
+    category_id: Optional[str] = UUIDField("Category ID", source="category_id")
+    category_name: Optional[str] = StringField("Category Name", source="category_name")
+    primary_image_url: Optional[str] = StringField("Primary Image URL", source="primary_image_url")
+    sku: Optional[str] = StringField("SKU", source="sku")
+    price: Optional[float] = FloatField("Variant Price", source="price")
+    base_price: Optional[float] = FloatField("Base Price", source="base_price")
+    stock_quantity: Optional[int] = IntegerField("Stock Quantity", source="stock_quantity")
+    variant_status: Optional[str] = StringField("Variant Status", source="variant_status")
+    tag: Optional[str] = StringField("Variant Tag", source="tag")

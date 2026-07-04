@@ -22,6 +22,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// console.log('AuthContext instance:', AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -82,10 +83,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logOut = async () => {
     setIsLoading(true);
+
     try {
-      await apiClient.logOut();
-      setUser(null);
+      await apiClient.signOut();
+    } catch (error) {
+      console.error('Logout failed:', error);
     } finally {
+      setUser(null);
+
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('username');
+
       setIsLoading(false);
     }
   };

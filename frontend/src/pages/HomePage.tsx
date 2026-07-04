@@ -20,6 +20,7 @@ import { PRODUCTS, ACCESSORIES, NEWS } from '../data';
 import ProductCard from '../components/ProductCard';
 import { Page, Product } from '../types';
 import { apiClient, Category, Brand } from '../api/client';
+import { Mic } from "lucide-react";
 
 interface HomePageProps {
   setPage: (page: Page) => void;
@@ -45,17 +46,49 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
 
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
 
+  const CATEGORY_SIDEBAR = [
+    {
+      id: "5e883863-9808-4319-acb7-078e6206798d",
+      name: "Smartphone",
+    },
+    {
+      id: "359432e9-f704-402c-a43e-5956fa29b8b6",
+      name: "Laptop",
+    },
+    {
+      id: "97f0db5f-fb2b-4c4e-9a29-51a3a025902c",
+      name: "Tablet",
+    },
+    {
+      id: "85b59231-9040-4f9f-b610-2aec7a1e9e18",
+      name: "Micro",
+    },
+  ];
+
+
   const capitalize = (value: string) =>
     value.charAt(0).toUpperCase() + value.slice(1);
 
-  const handleProductClick = (id: string) => {
+  const handleProductClick = (
+      id: string,
+      categoryId?: string
+    ) => {
     setProductId(id);
-    setPage('detail');
+
+    if (categoryId) {
+      setCategoryId(categoryId);
+    }
+
+    console.log("categoryId =", categoryId);
+    console.log("typeof categoryId =", typeof categoryId);
+    console.log("productId =", id);
+
+    setPage("detail");
   };
 
-  const handleSmartphoneQuery = () => {
-    setCategoryId(SMARTPHONE_CATEGORY_ID);
-    setPage('listing');
+  const handleCategoryQuery = (categoryId: string) => {
+    setCategoryId(categoryId);
+    setPage("listing");
   };
 
   const handleHomepageCategoryClick = (
@@ -186,8 +219,8 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
               item.primary_image_url ||
               item.image ||
               '',
-            category:
-              item.category_name || '',
+            categoryId:
+              item.category_id || '',
             brand:
               item.brand_name || '',
             rating: 4,
@@ -228,17 +261,30 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
           </div>
           <nav className="p-2 space-y-1 overflow-y-auto h-[calc(100%-56px)]">
             {[
-              { icon: <Smartphone className="w-5 h-5" />, label: 'Smartphone' },
-              { icon: <Laptop className="w-5 h-5" />, label: 'Laptop' },
-              { icon: <Tablet className="w-5 h-5" />, label: 'Tablet' },
-              { icon: <Watch className="w-5 h-5" />, label: 'Smartwatch' },
-              { icon: <Bolt className="w-5 h-5" />, label: 'Components' },
-              { icon: <Camera className="w-5 h-5" />, label: 'Camera' },
-              { icon: <BatteryFull className="w-5 h-5" />, label: 'Accessories' },
+              {
+                icon: <Smartphone className="w-5 h-5" />,
+                label: "Smartphone",
+                categoryId: "5e883863-9808-4319-acb7-078e6206798d",
+              },
+              {
+                icon: <Laptop className="w-5 h-5" />,
+                label: "Laptop",
+                categoryId: "359432e9-f704-402c-a43e-5956fa29b8b6",
+              },
+              {
+                icon: <Tablet className="w-5 h-5" />,
+                label: "Tablet",
+                categoryId: "97f0db5f-fb2b-4c4e-9a29-51a3a025902c",
+              },
+              {
+                icon: <Mic className="w-5 h-5" />,
+                label: "Micro",
+                categoryId: "85b59231-9040-4f9f-b610-2aec7a1e9e18",
+              },
             ].map((item, idx) => (
               <button 
                 key={idx}
-                onClick={() => item.label === 'Smartphone' ? handleSmartphoneQuery() : setPage('listing')}
+                onClick={() => {setCategoryId(item.categoryId); setPage("listing");}}
                 className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-zinc-50 group transition-all"
               >
                 <div className="flex items-center gap-3">
@@ -266,7 +312,7 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
                 <p className="text-lg mb-8 opacity-90 font-['Inter'] leading-relaxed">Experience the next generation of power and elegance. Engineered with aerospace-grade titanium.</p>
                 <div className="flex gap-4">
                   <button 
-                    onClick={handleSmartphoneQuery}
+                    onClick={handleCategoryQuery}
                     className="bg-[#FFD194] text-zinc-900 px-8 py-4 rounded-xl font-bold hover:scale-105 active:scale-95 transition-all outline-none shadow-lg shadow-[#FFD194]/20"
                   >
                     Xem smartphone
@@ -348,7 +394,7 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
         </div>
 
         {/* Feature Icons */}
-        <div className="flex gap-4 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+        {/* <div className="flex gap-4 mb-8 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { icon: <Smartphone className="w-6 h-6" />, label: 'Tất cả' },
             { icon: <Bolt className="w-6 h-6" />, label: 'Gaming' },
@@ -363,7 +409,7 @@ export default function HomePage({ setPage, setProductId, setCategoryId, setBran
               <span className="text-xs font-bold">{item.label}</span>
             </button>
           ))}
-        </div>
+        </div> */}
 
         {/* Brand Pills */}
         <div className="flex gap-3 mb-8 flex-wrap">

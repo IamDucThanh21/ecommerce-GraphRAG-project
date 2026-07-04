@@ -594,6 +594,180 @@ product_detail_view = PGView(
     ORDER BY p.name;
     """
 )
+# product_detail_view = PGView(
+#     schema=SCHEMA,
+#     signature="_product_detail",
+#     definition=f"""
+#     SELECT
+#         p._id,
+#         p._created,
+#         p._updated,
+#         p._creator,
+#         p._updater,
+#         p._deleted,
+#         p._etag,
+#         p._realm,
+#         p.name,
+#         p.description,
+#         p.slug,
+#         p.status,
+#         -- brand
+#         p.brand_id,
+#         pb.name                                                     AS brand_name,
+#         pb.slug                                                     AS brand_slug,
+#         pb.logo_url                                                 AS brand_logo_url,
+#         -- product line
+#         p.line_id,
+#         pl.name                                                     AS line_name,
+#         pl.slug                                                     AS line_slug,
+#         -- series
+#         p.series_id,
+#         ps.name                                                     AS series_name,
+#         ps.slug                                                     AS series_slug,
+#         -- primary category
+#         (
+#             SELECT pc._id
+#             FROM "{SCHEMA}".product_category_mapping AS pcm
+#             JOIN "{SCHEMA}".product_category          AS pc
+#                 ON pc._id        = pcm.category_id
+#                AND pc._deleted IS NULL
+#             WHERE pcm.product_id = p._id
+#               AND pcm.is_primary  = TRUE
+#               AND pcm._deleted IS NULL
+#             LIMIT 1
+#         )                                                           AS category_id,
+#         (
+#             SELECT pc.name
+#             FROM "{SCHEMA}".product_category_mapping AS pcm
+#             JOIN "{SCHEMA}".product_category          AS pc
+#                 ON pc._id        = pcm.category_id
+#                AND pc._deleted IS NULL
+#             WHERE pcm.product_id = p._id
+#               AND pcm.is_primary  = TRUE
+#               AND pcm._deleted IS NULL
+#             LIMIT 1
+#         )                                                           AS primary_category_name,
+#         -- all categories
+#         (
+#             SELECT COALESCE(
+#                 array_agg(pc.name ORDER BY pc.name),
+#                 ARRAY[]::varchar[]
+#             )
+#             FROM "{SCHEMA}".product_category_mapping AS pcm
+#             JOIN "{SCHEMA}".product_category          AS pc
+#                 ON pc._id        = pcm.category_id
+#                AND pc._deleted IS NULL
+#             WHERE pcm.product_id = p._id
+#               AND pcm._deleted IS NULL
+#         )                                                           AS category_names,
+#         -- primary image
+#         (
+#             SELECT pi.image_url
+#             FROM "{SCHEMA}".product_image AS pi
+#             WHERE pi.product_id  = p._id
+#               AND pi.is_primary   = TRUE
+#               AND pi._deleted IS NULL
+#             LIMIT 1
+#         )                                                           AS primary_image_url,
+#         -- all product-level images
+#         (
+#             SELECT COALESCE(
+#                 array_agg(pi.image_url ORDER BY pi.sort_order),
+#                 ARRAY[]::varchar[]
+#             )
+#             FROM "{SCHEMA}".product_image AS pi
+#             WHERE pi.product_id = p._id
+#               AND pi._deleted IS NULL
+#         )                                                           AS image_urls,
+#         -- variant summary
+#         (
+#             SELECT COUNT(*)
+#             FROM "{SCHEMA}".product_variant AS pv
+#             WHERE pv.product_id = p._id
+#               AND pv._deleted IS NULL
+#         )                                                           AS variant_count,
+#         (
+#             SELECT MIN(pv.price)
+#             FROM "{SCHEMA}".product_variant AS pv
+#             WHERE pv.product_id = p._id
+#               AND pv._deleted IS NULL
+#         )                                                           AS price_min,
+#         (
+#             SELECT MAX(pv.price)
+#             FROM "{SCHEMA}".product_variant AS pv
+#             WHERE pv.product_id = p._id
+#               AND pv._deleted IS NULL
+#         )                                                           AS price_max,
+#         (
+#             SELECT SUM(pv.stock_quantity)
+#             FROM "{SCHEMA}".product_variant AS pv
+#             WHERE pv.product_id = p._id
+#               AND pv._deleted IS NULL
+#         )                                                           AS total_stock,
+#         -- specs
+#         psf.specs_json                                              AS specs,
+#         -- structured spec groups
+#         (
+#             SELECT COALESCE(
+#                 json_agg(
+#                     json_build_object(
+#                         'group_id',   psg._id,
+#                         'group_name', psg.name,
+#                         'sort_order', psg.sort_order,
+#                         'values', (
+#                             SELECT COALESCE(
+#                                 json_agg(
+#                                     json_build_object(
+#                                         'key',           psv.key,
+#                                         'label',         psv.label,
+#                                         'value_text',    psv.value_text,
+#                                         'value_number',  psv.value_number,
+#                                         'value_boolean', psv.value_boolean,
+#                                         'value_unit',    psv.value_unit,
+#                                         'is_filterable', psv.is_filterable,
+#                                         'sort_order',    psv.sort_order
+#                                     )
+#                                     ORDER BY psv.sort_order
+#                                 ),
+#                                 '[]'::json
+#                             )
+#                             FROM "{SCHEMA}".product_spec_value AS psv
+#                             WHERE psv.product_spec_group_id = psg._id
+#                               AND psv._deleted IS NULL
+#                         )
+#                     )
+#                     ORDER BY psg.sort_order
+#                 ),
+#                 '[]'::json
+#             )
+#             FROM "{SCHEMA}".product_spec_group AS psg
+#             WHERE psg.product_id = p._id
+#               AND psg._deleted IS NULL
+#         )                                                           AS spec_groups,
+#         -- review aggregates
+#         COALESCE(rv.review_count, 0)                                AS review_count,
+#         rv.avg_star
+#     FROM "{SCHEMA}".product          AS p
+#     LEFT JOIN "{SCHEMA}".product_brand  AS pb  ON pb._id    = p.brand_id
+#                                               AND pb._deleted IS NULL
+#     LEFT JOIN "{SCHEMA}".product_line   AS pl  ON pl._id    = p.line_id
+#                                               AND pl._deleted IS NULL
+#     LEFT JOIN "{SCHEMA}".product_series AS ps  ON ps._id    = p.series_id
+#                                               AND ps._deleted IS NULL
+#     LEFT JOIN "{SCHEMA}".product_spec_flat AS psf ON psf.product_id = p._id
+#     LEFT JOIN LATERAL (
+#         SELECT
+#             COUNT(*)                                                AS review_count,
+#             ROUND(AVG(cr.star)::NUMERIC, 2)                        AS avg_star
+#         FROM "{SCHEMA}".customer_review AS cr
+#         WHERE cr.product_id = p._id
+#           AND cr.depth       = 0
+#           AND cr.star        IS NOT NULL
+#     ) AS rv ON TRUE
+#     WHERE p._deleted IS NULL
+#     ORDER BY p.name;
+#     """
+# )
  
  
 # # ─────────────────────────────────────────────────────────────────────────────

@@ -24,11 +24,12 @@ JWT_EXPIRATION_HOURS = 24
 
 class EcomClientAggregate(Aggregate):
     """Aggregate for ecom client domain."""
-
+    @action("jwt-token-generate", resources="user")
     async def generate_jwt_token(
         self,
         user_id: uuid.UUID,
         username: str,
+        session_id: str,
         expires_in_hours: int = JWT_EXPIRATION_HOURS
     ) -> str:
 
@@ -37,6 +38,7 @@ class EcomClientAggregate(Aggregate):
         payload = {
             "user_id": str(user_id),
             "username": username,
+            "session_id": str(session_id),
             "exp": int((now + timedelta(hours=int(expires_in_hours))).timestamp()),
             "iat": int(now.timestamp()),
             "type": "access",
@@ -77,26 +79,6 @@ class EcomClientAggregate(Aggregate):
         """
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-
-    # @action
-    # def verify_password(self, plain_password, hashed_password) -> bool:
-    #     """
-    #     Verify a plain text password against its hash.
-        
-    #     Args:
-    #         plain_password: Plain text password
-    #         hashed_password: Hashed password from database
-            
-    #     Returns:
-    #         True if password matches, False otherwise
-    #     """
-    #     if not hashed_password:
-    #         return False
-    #     try:
-    #         return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-    #     except Exception as e:
-    #         logger.error(f"Password verification error: {str(e)}")
-    #         return False
 
     @action("check-user-exists", resources="user")
     async def check_user_exists(self, username: str, email: str):
@@ -161,56 +143,6 @@ class EcomClientAggregate(Aggregate):
             Dictionary with user creation details
         """
         hashed_password = self.hash_password(password)
-        
-        # async with stm.session() as session:
-        #     # Create user
-        #     user = User(
-        #         _id=user_id,
-        #         username=username,
-        #         active=True,
-        #         status=UserStatusEnum.ACTIVE,
-        #         is_super_admin=False
-        #     )
-        #     session.add(user)
-            
-        #     # Create user identity (local provider)
-        #     user_identity = UserIdentity(
-        #         _id=UUID_GENR(),
-        #         user_id=user_id,
-        #         provider="local",
-        #         provider_user_id=username,
-        #         active=True,
-        #         telecom__email=email,
-        #         telecom__phone=phone,
-        #         password_hash=hashed_password
-        #     )
-        #     session.add(user_identity)
-            
-        #     # Create user profile
-        #     profile = Profile(
-        #         _id=UUID_GENR(),
-        #         user_id=user_id,
-        #         username=username,
-        #         telecom__email=email,
-        #         telecom__phone=phone,
-        #         name__given=first_name,
-        #         name__family=last_name,
-        #         verified_email=email if first_name and last_name else None,
-        #         status=UserStatusEnum.ACTIVE,
-        #         current_profile=True
-        #     )
-        #     session.add(profile)
-            
-        #     await session.commit()
-            
-        #     return {
-        #         "user_id": user_id,
-        #         "username": username,
-        #         "email": email,
-        #         "first_name": first_name,
-        #         "last_name": last_name,
-        #         "phone": phone
-        #     }
 
         user = self.init_resource(
             "user",
@@ -359,6 +291,24 @@ class EcomClientAggregate(Aggregate):
             profile.last_login = datetime.now(timezone.utc)
             await self.statemgr.update(profile)
 
+    @action("check-session", resources="user_session")
+    async def check_session(self, session_id, auth_user_id):
+        # Fetch the actual session entity from state manager
+        session = await self.statemgr.find_one(
+            "user_session",
+            where={"_id": session_id, "_deleted": None}
+        )
+        
+        if session:
+            return True
+        else:
+            raise BadRequestError("AUTH.007", "Session not found")
+        
+        # if str(session.user_id) != str(auth_user_id):
+        #     raise BadRequestError("AUTH.009", "Unauthorized to invalidate this session.")
+
+        return True
+
     @action("invalidate-session", resources="user_session")
     async def invalidate_session(self, session_id):
         """
@@ -378,6 +328,11 @@ class EcomClientAggregate(Aggregate):
 
         await self.statemgr.invalidate(session)
 
+        # blacklist the token (Redis)
+        # ttl = session.token_exp - int(time.time())  # remaining seconds
+        # if ttl > 0:
+        #     await redis_client.set(f"revoked:{session.jti}", "1", ex=ttl)
+
         return session
 
     @action("invalidate-all-sessions", resources="user_session")
@@ -389,12 +344,9 @@ class EcomClientAggregate(Aggregate):
             stm: State manager
             user_id: User ID
         """
-        async with stm.session() as session:
-            stmt = select(UserSession).where(UserSession.user_id == user_id)
-            result = await session.execute(stmt)
-            sessions = result.scalars().all()
-            
-            for user_session in sessions:
-                await session.delete(user_session)
-            
-            await session.commit()
+
+        sessions = await self.statemgr.find_all(
+            "user_session", where={"user_id": user_id, "_deleted": None}
+        )
+        for s in sessions:
+            await self.statemgr.invalidate(s)

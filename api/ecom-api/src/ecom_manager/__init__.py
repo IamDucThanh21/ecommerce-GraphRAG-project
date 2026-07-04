@@ -21,12 +21,22 @@ from fluvius.mcp import configure_mcp_server
 # from fluvius_beam import configure_beam_client
 # Import the loan application process workflow
 # from . import process
-from ecom_domain import ecom_client, ecom_product
+from ecom_domain import ecom_client, ecom_product, ecom_message, ecom_ai, ecom_discuss
+from .jwt_provider import JWTAuthProvider
+# from ecom_domain.ecom_ai.neo4j_client import setup as neo4j_setup
+# from ecom_domain.ecom_ai.ai_client import init_client as init_ai_client
+# import logging
+# from fastapi import APIRouter
+# from fastapi.responses import JSONResponse
+
 
 
 domains = (
     'ecom_domain.ecom_client.ECOMClientServiceDomain',
     'ecom_domain.ecom_product.ECOMProductServiceDomain',
+    'ecom_domain.ecom_message.ECOMMessageServiceDomain',
+    'ecom_domain.ecom_ai.ECOMAIServiceDomain',
+    'ecom_domain.ecom_discuss.ECOMDiscussServiceDomain'
     # WorkflowDomain,
     # 'rfx_idm.IDMDomain',
     # 'rfx_user.UserProfileDomain',
@@ -38,6 +48,8 @@ domains = (
 queries = (
     'ecom_domain.ecom_client.ECOMClientQueryManager',
     'ecom_domain.ecom_product.ECOMProductQueryManager',
+    'ecom_domain.ecom_message.ECOMMessageQueryManager',
+    'ecom_domain.ecom_discuss.ECOMDiscussQueryManager',
     # WorkflowQueryManager,
     # 'rfx_idm.IDMQueryManager',
     # 'rfx_user.UserProfileQueryManager',
@@ -47,7 +59,7 @@ queries = (
 )
 
 app = create_app(root_path='/api/v1') \
-    | configure_authentication(auth_profile_provider=FluviusMockProfileProvider) \
+    | configure_authentication(auth_profile_provider=JWTAuthProvider) \
     | configure_domain_manager(*domains) \
     | configure_query_manager(*queries) \
     | configure_mcp_server()

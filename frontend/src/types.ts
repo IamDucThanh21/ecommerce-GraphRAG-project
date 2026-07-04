@@ -9,7 +9,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   image: string;
-  category: string;
+  categoryId: string;
   brand: string;
   rating: number;
   reviewsCount: number;

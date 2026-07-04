@@ -40,6 +40,7 @@ SCHEMAS = (
     'ecom_ai',
     'ecom_cart',
     'ecom_client',
+    'ecom_discuss',
     'ecom_message',
     'ecom_order',
     'ecom_post',

@@ -8,30 +8,52 @@ import { Star, ShieldCheck, Truck, RotateCcw, Heart, Share2, ChevronLeft, Chevro
 import { PRODUCTS } from '../data';
 import { Page } from '../types';
 import ProductCard from '../components/ProductCard';
+import { ToastContainer, toast } from "react-toastify";
 
-import { apiClient, ProductVariant } from '../api/client';
+import { apiClient, ProductVariant, CommentDetail, ReviewSummary, ReviewTagGroup } from '../api/client';
 
 interface DetailPageProps {
   productId: string;
   categoryId: string;
+  setProductId: (id: string) => void;
+  setCategoryId: (id: string) => void;
   setPage: (page: Page) => void;
 }
 
-export default function DetailPage({ productId, categoryId, setPage }: DetailPageProps) {
+export default function DetailPage({productId, categoryId, setPage, setProductId,  setCategoryId}: DetailPageProps) {
+  const [selectedStar, setSelectedStar] = useState<number | null>(null);
   // const product = PRODUCTS.find((p) => p.id === productId) || PRODUCTS[0];
-  const [showAllSpecs, setShowAllSpecs] =
-  useState(false);
+  const [showAllSpecs, setShowAllSpecs] = useState(false);
 
-  const [selectedSpecGroup, setSelectedSpecGroup] =
-  useState(0);
+  const [selectedSpecGroup, setSelectedSpecGroup] = useState(0);
 
-  const [variants, setVariants] =
-  useState<ProductVariant[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
 
-  const [selectedVariant, setSelectedVariant] =
-    useState<ProductVariant | null>(
-      null
-    );
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+
+  const [reviewSummary, setReviewSummary] =
+  useState<ReviewSummary | null>(null);
+
+  const [reviewGroups, setReviewGroups] =
+    useState<ReviewTagGroup[]>([]);
+
+  const handleRelatedProductClick = (
+    id: string,
+    categoryId?: string
+  ) => {
+    setProductId(id);
+
+    if (categoryId) {
+      setCategoryId(categoryId);
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+
+    setPage("detail");
+  };
 
   const [
     userSelectedVariant,
@@ -197,210 +219,310 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
   };
 
   /* -----------------------------
-    Static Specs
+    Auth check
   ----------------------------- */
-  const fullSpecs = [
-    {
-      label: 'Màn hình',
-      value:
-        '6.1 inch, LTPO Super Retina XDR OLED, 120Hz',
-    },
-    {
-      label: 'Chipset',
-      value:
-        'Apple A17 Pro (3 nm)',
-    },
-    {
-      label: 'CPU',
-      value:
-        'Hexa-core (2x3.78 GHz + 4x2.11 GHz)',
-    },
-    {
-      label: 'GPU',
-      value:
-        'Apple GPU (6-core graphics)',
-    },
-    {
-      label: 'Camera sau',
-      value:
-        '48MP (Chính) + 12MP (Tele) + 12MP (Ultra wide)',
-    },
-    {
-      label: 'Camera trước',
-      value:
-        '12MP, f/1.9, 23mm (wide)',
-    },
-    {
-      label: 'RAM',
-      value: '8GB',
-    },
-    {
-      label: 'Pin',
-      value:
-        'Li-Ion 3274 mAh, Sạc 50% trong 30p',
-    },
-    {
-      label:
-        'Hệ điều hành',
-      value: 'iOS 17',
-    },
-    {
-      label:
-        'Khối lượng',
-      value:
-        '187 g (6.60 oz)',
-    },
-    {
-      label: 'SIM',
-      value:
-        'Nano-SIM và eSIM',
-    },
-    {
-      label:
-        'Cổng sạc',
-      value:
-        'USB Type-C 3.0',
-    },
-    {
-      label:
-        'Kháng nước',
-      value:
-        'IP68 (độ sâu 6m trong 30p)',
-    },
-  ];
 
-  const displayedSpecs =
-    showAllSpecs
-      ? fullSpecs
-      : fullSpecs.slice(0, 10);
+  const [isAuthenticated, setIsAuthenticated] = useState(apiClient.isAuthenticated());
 
   useEffect(() => {
-      const loadRelatedProducts =
-        async () => {
-          if (
-            !product?.category_id
-          ) {
-            setRelatedProducts([]);
-            return;
-          }
-  
-          try {
-            setLoadingRelatedProducts(
-              true
-            );
-  
-            const response =
-              await apiClient.productList({
-                category_id:
-                  product.category_id,
-                page: 1,
-                limit: 20,
-              });
-  
-            const list =
-              Array.isArray(response)
-                ? response
-                : response?.data ?? [];
-  
-            const mappedProducts =
-              list
-                // remove current product
-                .filter(
-                  (item: any) =>
-                    item.id !==
-                    product.id
-                )
-                .map((item: any) => ({
-                  id: item.id,
-                  name:
-                    item.name ||
-                    'Product',
-                  price:
-                    item.price ??
-                    item.base_price ??
-                    0,
-                  originalPrice:
-                    item.base_price &&
-                    item.base_price >
-                      (item.price ??
-                        0)
-                      ? item.base_price
-                      : undefined,
-                  image:
-                    item.primary_image_url ||
-                    '',
-                  category:
-                    item.category_name ||
-                    '',
-                  brand:
-                    item.brand_name ||
-                    '',
-                  rating: 4,
-                  reviewsCount: 10,
-                  description:
-                    item.description ??
-                    '',
-                }));
-  
-            setRelatedProducts(
-              mappedProducts
-            );
-          } catch (error) {
-            console.error(
-              'Failed to load related products:',
-              error
-            );
-  
-            setRelatedProducts([]);
-          } finally {
-            setLoadingRelatedProducts(
-              false
-            );
-          }
-        };
-  
-      loadRelatedProducts();
-    }, [
-      product?.id,
-      product?.category_id,
-    ]);
+      const checkAuth = () =>
+        setIsAuthenticated(apiClient.isAuthenticated());
+
+      checkAuth();
+
+      window.addEventListener('auth-change', checkAuth);
+
+      return () => {
+        window.removeEventListener(
+          'auth-change',
+          checkAuth
+        );
+      };
+    }, []);
+    
+
+    const handleSubmitReview = async () => {
+    // Chưa đăng nhập
+    if (!apiClient.isAuthenticated()) {
+      toast.warning('Xin vui lòng đăng nhập');
+      return;
+    }
+
+    // Chưa load product
+    if (!product) {
+      toast.error('Không tìm thấy thông tin sản phẩm.');
+      return;
+    }
+
+    // Chưa nhập nội dung
+    if (!reviewContent.trim()) {
+      toast.warning('Vui lòng nhập nội dung đánh giá.');
+      return;
+    }
+
+    // Chưa chọn số sao
+    if (reviewStar < 1 || reviewStar > 5) {
+      toast.warning('Vui lòng chọn số sao.');
+      return;
+    }
+
+    try {
+      // Lấy id của option tương ứng với từng group
+      const tagOptionIds = Object.entries(groupRatings)
+        .map(([groupId, star]) => {
+          const option = tagOptions[groupId]?.find(
+            (o) => o.option_sort_order === star
+          );
+
+          return option?.id;
+        })
+        .filter(Boolean) as string[];
+
+      const payload = {
+        resource_type: 'product',
+        resource_id: product.id,
+        content: reviewContent.trim(),
+        star: reviewStar,
+        tag_option_ids: tagOptionIds,
+      };
+
+      console.log('Create comment payload:', payload);
+      
+      console.log(localStorage.getItem("auth_token"));
+      
+      await apiClient.createComment(payload);
+
+      toast.success('Đánh giá thành công!');
+
+      // Reset form
+      setReviewContent('');
+      setReviewStar(5);
+
+      setHoverStar(0);
+
+      setGroupRatings({});
+      setHoverGroupRatings({});
+
+      // Reload comment list
+      const [commentRes, allCommentRes, summaryRes] =
+        await Promise.all([
+          apiClient.commentList({
+            resourceId: product.id,
+            page: 1,
+            limit: 25,
+            star: selectedStar ?? undefined,
+          }),
+
+          apiClient.commentList({
+            resourceId: product.id,
+            page: 1,
+            limit: 1000,
+          }),
+
+          apiClient.getCommentSummary(product.id),
+        ]);
+
+      setComments(commentRes.data ?? []);
+      setAllComments(allCommentRes.data ?? []);
+      setReviewSummary(summaryRes);
+    } catch (error) {
+      console.error(error);
+
+      toast.error('Không thể gửi đánh giá.');
+    }
+  };
 
   /* -----------------------------
-    Reviews Mock Data
+    Reviews get data
   ----------------------------- */
-  const reviews = [
-    {
-      id: 1,
-      user: 'Hoàng Anh',
-      rating: 5,
-      date: '2 ngày trước',
-      comment:
-        'Máy rất mượt, camera chụp đêm xuất sắc. Rất hài lòng với dịch vụ của WiseTech.',
-      replies: [
-        {
-          id: 101,
-          user:
-            'Admin WiseTech',
-          date:
-            '1 ngày trước',
-          comment:
-            'Cảm ơn bạn đã tin tưởng ủng hộ WiseTech ạ!',
-        },
-      ],
-    },
-    {
-      id: 2,
-      user:
-        'Minh Tuấn',
-      rating: 4,
-      date:
-        '1 tuần trước',
-      comment:
-        'Hiệu năng tốt nhưng pin dùng bình thường.',
-      replies: [],
-    },
+  const [comments, setComments] = useState<CommentDetail[]>([]);
+  const [commentLoading, setCommentLoading] = useState(false);
+
+  const [allComments, setAllComments] = useState<CommentDetail[]>([]);
+  useEffect(() => {
+    if (!product?.id) return;
+
+    const loadAllComments = async () => {
+      try {
+        const response = await apiClient.commentList({
+          resourceId: product.id,
+          page: 1,
+          limit: 1000,
+        });
+
+        setAllComments(response.data ?? []);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadAllComments();
+  }, [product?.id]);
+
+  useEffect(() => {
+    if (!product?.id) return;
+
+    const loadComments = async () => {
+      try {
+        setCommentLoading(true);
+
+        const response = await apiClient.commentList({
+          resourceId: product.id,
+          page: 1,
+          limit: 25,
+          star: selectedStar ?? undefined,
+        });
+        setComments(response.data ?? []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setCommentLoading(false);
+      }
+    };
+
+    loadComments();
+  }, [product?.id, selectedStar]);
+
+  const formatCommentDate = (date: string) => {
+    return new Date(date).toLocaleDateString('vi-VN');
+  };
+
+  const avatarColors = [
+    'bg-red-500',
+    'bg-orange-500',
+    'bg-amber-500',
+    'bg-yellow-500',
+    'bg-lime-500',
+    'bg-green-500',
+    'bg-emerald-500',
+    'bg-teal-500',
+    'bg-cyan-500',
+    'bg-sky-500',
+    'bg-blue-500',
+    'bg-indigo-500',
+    'bg-violet-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-rose-500',
   ];
 
+  const getAvatarLetter = (comment: CommentDetail) => {
+    return comment.name_user?.charAt(0)?.toUpperCase() || 'U';
+  };
+
+  const getAvatarColor = (name?: string | null) => {
+    if (!name) {
+      return 'bg-gray-500';
+    }
+
+    const hash = name
+      .split('')
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    return avatarColors[hash % avatarColors.length];
+  };
+
+  const averageRating =
+    allComments.length > 0
+      ? (
+          allComments.reduce((sum, c) => sum + c.star, 0) /
+          allComments.length
+        ).toFixed(1)
+      : '0.0';
+
+
+  const [reviewStar, setReviewStar] = useState<number>(5);
+  const [hoverStar, setHoverStar] = useState<number>(0);  
+  const [selectedTags, setSelectedTags] = useState<Record<string, string>>({});
+  
+  type ReviewTagOption = {
+    id: string;
+    group_id: string;
+    option_name: string;
+    option_sort_order: number; // 1 -> 5 stars
+  };
+
+  const [tagOptions, setTagOptions] = useState<Record<string, ReviewTagOption[]>  >({});
+  const [groupRatings, setGroupRatings] = useState<Record<string, number>>({});
+
+  const [hoverGroupRatings, setHoverGroupRatings] = useState<Record<string, number>>({});
+  
+  useEffect(() => {
+    if (!reviewGroups.length) return;
+
+    const loadTagOptions = async () => {
+      try {
+        const responses = await Promise.all(
+          reviewGroups.map((group) =>
+            apiClient.reviewTagOptionList(
+              group.id
+            )
+          )
+        );
+
+        const optionMap: Record<
+          string,
+          ReviewTagOption[]
+        > = {};
+
+        reviewGroups.forEach(
+          (group, index) => {
+            optionMap[group.id] =
+              responses[index].data.sort(
+                (a, b) =>
+                  a.option_sort_order -
+                  b.option_sort_order
+              );
+          }
+        );
+
+        setTagOptions(optionMap);
+
+        console.log(
+          'tag options loaded',
+          optionMap
+        );
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadTagOptions();
+  }, [reviewGroups]);
+  const getGroupOptionText = (
+    groupId: string,
+    star: number
+  ) => {
+    const options = tagOptions[groupId] ?? [];
+    console.log(
+      'groupId=',
+      groupId,
+      'star=',
+      star,
+      'options=',
+      options
+    );
+
+    return (
+      options.find(
+        (o) => o.option_sort_order === star
+      )?.option_name ?? ''
+    );
+  };
+
+  const [reviewContent, setReviewContent] = useState('');
+
+  const getSelectedOptionIds = () => {
+    return Object.entries(groupRatings)
+      .map(([groupId, star]) => {
+        const option = tagOptions[groupId]?.find(
+          (o) => o.option_sort_order === star
+        );
+
+        return option?.id;
+      })
+      .filter(Boolean) as string[];
+  };
   /* -----------------------------
     Load Product Detail
   ----------------------------- */
@@ -424,10 +546,10 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
               productId
             );
 
-          console.log(
-            'Product detail:',
-            response
-          );
+          // console.log(
+          //   'Product detail:',
+          //   response
+          // );
 
           setProduct(response);
         } catch (err) {
@@ -476,6 +598,38 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
     fetchVariants();
   }, [product?.id]);
 
+  useEffect(() => {
+    if (!product?.id || !product?.category_id) return;
+
+    const loadReviewMeta = async () => {
+      try {
+        const [groupsResult, summaryResult] =
+          await Promise.allSettled([
+            apiClient.getReviewTagGroups(product.category_id),
+            apiClient.getCommentSummary(product.id),
+          ]);
+
+        if (groupsResult.status === "fulfilled") {
+          setReviewGroups(groupsResult.value.data ?? []);
+        }
+
+        if (summaryResult.status === "fulfilled") {
+          setReviewSummary(summaryResult.value);
+        } else {
+          setReviewSummary({
+            average_star: 0,
+            num_comments: 0,
+            groups: [],
+          });
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadReviewMeta();
+  }, [product?.id, product?.category_id]);
+
   /* -----------------------------
     Loading / Error
   ----------------------------- */
@@ -502,8 +656,6 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
       </div>
     );
   }
-
-
 
   /* -----------------------------
     Safe Product Data
@@ -1091,110 +1243,452 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
         </aside>
       </div>
 
-      {/* Reviews Section - Instagram Style & Centered */}
-      <section className="pt-20 border-t border-zinc-100 flex flex-col items-center">
-        <div className="w-full max-w-2xl px-4 lg:px-0">
-          <div className="flex items-center justify-between mb-12">
-            <h2 className="text-3xl font-black uppercase tracking-tighter text-zinc-900 flex items-center gap-3">
-              Reviews <span className="text-zinc-300">({displayProduct.reviewsCount})</span>
-            </h2>
-          </div>
+      {/* Reviews Section */}
+      <section className="mt-16">
+        <div className="bg-stone-50 rounded-3xl p-6 lg:p-10 border border-stone-200">
 
-          {/* New Comment Input Area */}
-          <div className="mb-12 p-6 bg-white border-2 border-zinc-100 rounded-[2rem] flex flex-col gap-4 shadow-xl shadow-zinc-900/5 group focus-within:border-zinc-900 transition-all">
-            <div className="flex gap-4 items-center mb-2">
-              <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center font-bold text-zinc-400 text-xs uppercase">You</div>
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Share your thoughts...</span>
-            </div>
-            <textarea 
-              className="w-full bg-transparent border-none outline-none text-sm font-medium text-zinc-800 placeholder:text-zinc-300 resize-none h-24"
-              placeholder="What do you think about this product?"
-            />
-            <div className="flex justify-between items-center pt-2 border-t border-zinc-50">
-              <div className="flex gap-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 text-zinc-200 hover:text-yellow-400 cursor-pointer transition-colors" />
+          <h2 className="text-4xl font-bold text-stone-900 mb-8">
+            Đánh giá & nhận xét
+          </h2>
+
+          {/* ================= TOP ROW ================= */}
+          <div className="grid lg:grid-cols-12 gap-6 items-start">
+
+            {/* Rating */}
+            <div className="lg:col-span-2">
+              <div className="flex items-end gap-2">
+                <span className="text-6xl font-bold">
+                  {reviewSummary?.average_star?.toFixed(1) ?? '0.0'}
+                </span>
+
+                <span className="text-3xl text-stone-400 mb-1">
+                  /5
+                </span>
+              </div>
+
+              <div className="flex mt-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`w-5 h-5 ${
+                      s <= Math.round(reviewSummary?.average_star ?? 0)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-stone-300'
+                    }`}
+                  />
                 ))}
               </div>
-              <button className="px-6 py-2 bg-zinc-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95">
-                Post Comment
-              </button>
-            </div>
-          </div>
 
-          <div className="space-y-12">
-            {reviews.map((rev) => (
-            <div key={rev.id} className="space-y-4">
-              {/* Instagram Style Comment Header */}
-              <div className="flex gap-4 group">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-red-500 p-[2px] shrink-0">
-                  <div className="w-full h-full rounded-full bg-white p-[2px]">
-                    <div className="w-full h-full rounded-full bg-zinc-200 flex items-center justify-center font-bold text-zinc-600 text-sm overflow-hidden">
-                      {rev.user.charAt(0)}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex-1 pt-1">
-                  <div className="flex flex-wrap items-baseline gap-2 mb-1">
-                    <span className="font-bold text-zinc-900 text-sm hover:underline cursor-pointer">
-                      {rev.user.toLowerCase().replace(' ', '_')}
-                    </span>
-                    <p className="text-sm text-zinc-700 leading-snug">
-                      {rev.comment}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-                    <span>{rev.date}</span>
-                    <button className="hover:text-zinc-900 transition-colors">Reply</button>
-                    <div className="flex gap-1 text-yellow-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`w-2.5 h-2.5 ${i < rev.rating ? 'fill-current' : 'text-zinc-200'}`} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <button className="pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Heart className="w-3 h-3 text-zinc-300 hover:text-red-500" />
-                </button>
+              <div className="mt-2 text-sm text-stone-500">
+                {reviewSummary?.num_comments ?? 0} lượt đánh giá
               </div>
+            </div>
 
-              {/* Replies Section */}
-              {rev.replies.length > 0 && (
-                <div className="pl-14 pt-2">
-                  <button className="flex items-center gap-3 text-[11px] font-bold text-zinc-400 hover:text-zinc-900 transition-colors uppercase tracking-widest mb-4">
-                    <div className="w-6 h-[1px] bg-zinc-200"></div>
-                    View {rev.replies.length} reply
-                  </button>
-                  <div className="space-y-4">
-                    {rev.replies.map((reply) => (
-                      <div key={reply.id} className="flex gap-3 group">
-                        <div className="w-6 h-6 rounded-full bg-zinc-900 flex items-center justify-center font-black text-white text-[8px] shrink-0">
-                          W
+            {/* Experience */}
+            <div className="lg:col-span-4 border-l border-stone-200 pl-5 -ml-7">
+              <h3 className="font-semibold text-stone-800 mb-3">
+                Đánh giá theo trải nghiệm
+              </h3>
+
+              <div className="space-y-3">
+                {reviewGroups
+                  ?.sort((a, b) => a.sort_order - b.sort_order)
+                  .map((group) => {
+                    const summary =
+                      reviewSummary?.groups?.find(
+                        (g) => g._id === group.id
+                      );
+
+                    return (
+                      <div
+                        key={group.id}
+                        className="flex items-center"
+                      >
+                        <div className="w-36 text-sm text-stone-700">
+                          {group.name}
                         </div>
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-baseline gap-2 mb-1">
-                            <span className="font-bold text-zinc-900 text-xs">
-                              {reply.user.toLowerCase().replace(' ', '_')}
-                            </span>
-                            <p className="text-xs text-zinc-500 leading-snug">
-                              {reply.comment}
-                            </p>
+
+                        <div className="ml-auto flex items-center gap-3">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-4 h-4 ${
+                                  s <= Math.round(summary?.average ?? 0)
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "text-stone-300"
+                                }`}
+                              />
+                            ))}
                           </div>
-                          <div className="flex items-center gap-3 text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
-                            <span>{reply.date}</span>
-                            <button className="hover:text-zinc-900 transition-colors">Reply</button>
-                          </div>
+
+                          <span className="text-sm font-medium">
+                            {(summary?.average ?? 0).toFixed(1)}/5
+                          </span>
+
+                          <span className="text-sm text-stone-400 whitespace-nowrap">
+                            ({summary?.num_vote ?? 0} đánh giá)
+                          </span>
                         </div>
                       </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Star Distribution */}
+            <div className="lg:col-span-6 border-l border-stone-200 pl-5">
+              <h3 className="font-semibold text-stone-800 mb-3">
+                Đánh giá theo số sao
+              </h3>
+
+              <div className="space-y-3">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = allComments.filter(
+                    (c) => c.star === star
+                  ).length;
+
+                  return (
+                    <div
+                      key={star}
+                      className="flex items-center gap-3"
+                    >
+                      <span className="w-10 text-sm">
+                        {star} sao
+                      </span>
+
+                      <div className="flex-1 h-2 rounded-full bg-stone-200 overflow-hidden">
+                        <div
+                          className="h-full bg-yellow-400"
+                          style={{
+                            width: `${
+                              allComments.length
+                                ? (count / allComments.length) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+
+                      <span className="w-8 text-sm text-stone-500">
+                        {count}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+
+          {/* ================= BOTTOM ROW ================= */}
+          <div className="grid lg:grid-cols-12 gap-8 items-start mt-4">
+
+            {/* Write Review */}
+            <div className="lg:col-span-5 border-r border-stone-200 pr-8">
+              <div className="mb-8">
+                <h3 className="font-bold text-xl mb-6">
+                  Đánh giá chung
+                </h3>
+
+                <div className="flex justify-between">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onMouseEnter={() =>
+                        setHoverStar(star)
+                      }
+                      onMouseLeave={() =>
+                        setHoverStar(0)
+                      }
+                      onClick={() =>
+                        setReviewStar(star)
+                      }
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          star <=
+                          (hoverStar || reviewStar)
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-stone-300'
+                        }`}
+                      />
+                      <span className="text-sm">
+                        {[
+                          '',
+                          'Rất tệ',
+                          'Tệ',
+                          'Bình thường',
+                          'Tốt',
+                          'Tuyệt vời',
+                        ][star]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="font-bold text-xl mb-6">
+                  Theo trải nghiệm
+                </h3>
+
+                <div className="space-y-4">
+                  {reviewGroups
+                    ?.sort((a, b) => a.sort_order - b.sort_order)
+                    .map((group) => {
+                      const hoverValue =
+                        hoverGroupRatings[group.id];
+
+                      const currentValue =
+                        hoverValue && hoverValue > 0
+                          ? hoverValue
+                          : groupRatings[group.id] ?? 0;
+
+                      return (
+                        <div
+                          key={group.id}
+                          className="
+                            grid
+                            grid-cols-[140px_150px_220px]
+                            items-center
+                            gap-4
+                          "
+                        >
+                          {/* Group name */}
+                          <div className="text-stone-700 text-lg">
+                            {group.name}
+                          </div>
+
+                          {/* Stars */}
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                onMouseEnter={() =>
+                                  setHoverGroupRatings((prev) => ({
+                                    ...prev,
+                                    [group.id]: star,
+                                  }))
+                                }
+                                onMouseLeave={() =>
+                                  setHoverGroupRatings((prev) => {
+                                    const next = { ...prev };
+                                    delete next[group.id];
+                                    return next;
+                                  })
+                                }
+                                onClick={() =>
+                                  setGroupRatings((prev) => ({
+                                    ...prev,
+                                    [group.id]: star,
+                                  }))
+                                }
+                                className={`w-5 h-5 cursor-pointer ${
+                                  star <= currentValue
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-stone-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Option text */}
+                          <div className="text-stone-600 text-base">
+                            {getGroupOptionText(
+                              group.id,
+                              currentValue
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <h3 className="font-semibold text-stone-800 mb-4">
+                Viết đánh giá
+              </h3>
+
+              <div className="border border-stone-200 rounded-2xl bg-white p-5">
+
+                <textarea
+                  rows={5}
+                  placeholder="Xin mời chia sẻ cảm nhận về sản phẩm..."
+                  className="
+                    w-full
+                    rounded-xl
+                    border
+                    border-stone-200
+                    p-3
+                    resize-none
+                    outline-none
+                  "
+                  value={reviewContent}
+                    onChange={(e) => setReviewContent(e.target.value)}
+                />
+
+                <button
+                  onClick={handleSubmitReview}
+                  className="
+                    mt-4
+                    w-full
+                    py-3
+                    rounded-xl
+                    bg-red-600
+                    text-white
+                    font-semibold
+                    hover:bg-red-700
+                  "
+                >
+                  Gửi đánh giá
+                </button>
+              </div>
+            </div>
+
+            {/* Customer Reviews */}
+            <div className="lg:col-span-7">
+
+              <h3 className="font-semibold text-stone-800 mb-4">
+                Nhận xét từ khách hàng
+              </h3>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                    <button
+                      onClick={() => setSelectedStar(null)}
+                      className={`
+                        px-4 py-2 rounded-full text-sm
+                        ${
+                          selectedStar === null
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-stone-100 text-stone-700'
+                        }
+                      `}
+                    >
+                      Tất cả
+                    </button>
+
+                    {[5, 4, 3, 2, 1].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setSelectedStar(star)}
+                        className={`
+                          px-4 py-2 rounded-full text-sm transition
+                          ${
+                            selectedStar === star
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                          }
+                        `}
+                      >
+                        {star} sao
+                      </button>
                     ))}
                   </div>
+
+              <div
+                  className="
+                    space-y-4
+                    max-h-[800px]
+                    overflow-y-auto
+                    pr-2
+                  "
+                >
+
+                  {comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="
+                        bg-white
+                        rounded-2xl
+                        border
+                        border-stone-200
+                        p-4
+                        shadow-sm
+                      "
+                    >
+
+                      {/* Header */}
+                      <div className="flex justify-between items-start gap-4">
+
+                        <div className="flex gap-3">
+
+                          <div
+                            className={`
+                              w-10
+                              h-10
+                              rounded-full
+                              text-white
+                              flex
+                              items-center
+                              justify-center
+                              font-semibold
+                              ${getAvatarColor(comment.name_user)}
+                            `}
+                          >
+                            {getAvatarLetter(comment)}
+                          </div>
+
+                          <div>
+                            <div className="font-semibold text-stone-900">
+                              {comment.name_user ?? 'Người dùng'}
+                            </div>
+
+                            <div className="text-xs text-stone-400">
+                              {formatCommentDate(comment.created)}
+                            </div>
+                          </div>
+
+                        </div>
+
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-4 h-4 ${
+                                s <= comment.star
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-stone-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                      </div>
+                      {/* Tags */}
+                      {comment.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {comment.tags.map((tag) => (
+                            <span
+                              key={tag.option_id}
+                              className="
+                                px-2.5
+                                py-1
+                                rounded-md
+                                bg-stone-100
+                                text-xs
+                                text-stone-600
+                              "
+                            >
+                              {tag.option_name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <p className="mt-4 text-sm text-stone-700 leading-relaxed">
+                        {comment.content}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              )}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* Related Products */}
       <section className="pb-20">
@@ -1222,20 +1716,26 @@ export default function DetailPage({ productId, categoryId, setPage }: DetailPag
             ) : (
               visibleRelatedProducts.map(
                 (p) => (
+                  // <ProductCard
+                  //   key={p.id}
+                  //   product={p}
+                  //   onClick={(id) => {
+                  //     window.scrollTo({
+                  //       top: 0,
+                  //       behavior: 'smooth',
+                  //     });
+
+                  //     setPage(
+                  //       'detail'
+                  //     );
+                  //   }}
+                  // />
                   <ProductCard
                     key={p.id}
                     product={p}
-                    onClick={(id) => {
-                      window.scrollTo({
-                        top: 0,
-                        behavior: 'smooth',
-                      });
-
-                      setPage(
-                        'detail'
-                      );
-                    }}
+                    onClick={handleRelatedProductClick}
                   />
+                  
                 )
               )
             )}

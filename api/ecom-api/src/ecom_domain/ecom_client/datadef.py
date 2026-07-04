@@ -21,11 +21,9 @@ class SignInData(DataModel):
     password: str = Field(..., description="The password for the user.", min_length=1)
 
 
-class LogOutData(DataModel):
+class SignOutData(DataModel):
     """Data model for user log-out information."""
-    
-    user_id: uuid.UUID = Field(..., description="The user ID to logout.")
-    session_id: Optional[uuid.UUID] = Field(None, description="The specific session ID to invalidate (optional).")
+    session_id: uuid.UUID = Field(None, description="The specific session ID to invalidate (optional).")
 
 
 class AuthTokenResponse(DataModel):
@@ -36,3 +34,9 @@ class AuthTokenResponse(DataModel):
     expires_in: int = Field(..., description="Token expiration time in seconds.")
     user_id: uuid.UUID = Field(..., description="The authenticated user ID.")
     username: str = Field(..., description="The authenticated username.")
+
+class UpdateInformationUser(DataModel):
+    email: Optional[EmailStr] = Field(..., description="The email address of the new user.")
+    first_name: Optional[str] = Field(None, description="First name of the user.", max_length=255)
+    last_name: Optional[str] = Field(None, description="Last name of the user.", max_length=255)
+    phone: Optional[str] = Field(None, description="Phone number of the user.", max_length=50)

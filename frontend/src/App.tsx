@@ -14,17 +14,27 @@ import AuthPage from './pages/AuthPage';
 import ChatWidget from './components/ChatWidget';
 import { Page } from './types';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
+  const [searchText, setSearchText] =  useState('');
 
   // Scroll to top on page change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentPage]);
+
+  useEffect(() => {
+    console.log(
+      'searchText:',
+      searchText
+    );
+  }, [searchText]);
 
   const renderPage = () => {
     switch (currentPage) {
@@ -46,10 +56,11 @@ function AppContent() {
             categoryId={selectedCategoryId}
             brandId={selectedBrandId}
             setBrandId={setSelectedBrandId}
+            searchText={searchText}
           />
         );
       case 'detail':
-        return <DetailPage productId={selectedProductId} categoryId={selectedCategoryId} setPage={setCurrentPage} />;
+        return <DetailPage productId={selectedProductId} categoryId={selectedCategoryId} setPage={setCurrentPage} setProductId={setSelectedProductId} setCategoryId={setSelectedCategoryId}/>;
       case 'auth':
         return <AuthPage setPage={setCurrentPage} />;
       default:
@@ -66,7 +77,12 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#FCF9F5] text-zinc-900 selection:bg-[#FFD194] selection:text-zinc-900">
-      <Navbar currentPage={currentPage} setPage={setCurrentPage} />
+      <Navbar 
+        currentPage={currentPage} 
+        setPage={setCurrentPage} 
+        setCategoryId={setSelectedCategoryId}
+        setSearchText={setSearchText}
+      />
       
       <main className="max-w-[1440px] mx-auto px-6 pt-28 pb-20">
         <AnimatePresence mode="wait">
@@ -83,7 +99,11 @@ function AppContent() {
       </main>
 
       <Footer />
-      <ChatWidget />
+      <ChatWidget
+        setPage={setCurrentPage}
+        setProductId={setSelectedProductId}
+        setCategoryId={setSelectedCategoryId}
+      />
     </div>
   );
 }
@@ -92,6 +112,17 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="light"
+        aria-label="Notification"
+      />
     </AuthProvider>
   );
 }

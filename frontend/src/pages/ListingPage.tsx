@@ -22,9 +22,10 @@ interface ListingPageProps {
   categoryId: string;
   brandId: string | null;
   setBrandId: (id: string | null) => void;
+  searchText: string | null;
 }
 
-export default function ListingPage({ setPage, setProductId, setCategoryId, categoryId, brandId, setBrandId }: ListingPageProps) {
+export default function ListingPage({ setPage, setProductId, setCategoryId, categoryId, brandId, setBrandId, searchText }: ListingPageProps) {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loadingBrands, setLoadingBrands] = useState(false);  
   // const [brandId, setBrandId] = useState<string | null>(null);
@@ -94,150 +95,131 @@ export default function ListingPage({ setPage, setProductId, setCategoryId, cate
     setBrandId(id);
   };
 
-  const fetchProducts = useCallback(
-  async (
-    pageNumber: number,
-    append: boolean = false
-  ) => {
+  const fetchProducts = useCallback(async (pageNumber: number, append: boolean = false) => {
     try {
-      const response =
-        await apiClient.productList({
-          category_id: categoryId,
-          brand_id:
-            brandId ?? undefined,
-          page: pageNumber,
-          limit: 25,
-          sort: sortBy || undefined,
-          price_min:
-            priceFilter?.min,
-          price_max:
-            priceFilter?.max,
-        });
+      let response;
 
-      const list = Array.isArray(
-        response
-      )
-        ? response
-        : (response as BackendProductListResponse)
-            ?.data ??
-          (response as any)?.items ??
-          (response as any)
-            ?.objects ??
-          [];
+      if (searchText?.trim() && !categoryId) {
+        console.log('Calling search API:', searchText);
+        response =
+          await apiClient.productListSearch({
+            text: searchText.trim(),
+            page: pageNumber,
+            limit: 25,
+          });
+        console.log('API response:', response);
+      } else {
+        console.log('Calling category API:',categoryId);
+        response = await apiClient.productList({
+              category_id: categoryId,
+              brand_id: brandId ?? undefined,
+              page: pageNumber,
+              limit: 25,
+              sort: sortBy || undefined,
+              price_min: priceFilter?.min,
+              price_max: priceFilter?.max,
+            });
+      }
 
-      const mappedProducts: Product[] =
-        (list as any[])
-          .map((item) => ({
-            id: item.id,
-            categoryId: item.category_id,
+      const list = Array.isArray(response)
+                          ? response
+                          : (response as BackendProductListResponse)
+                              ?.data ??
+                            (response as any)?.items ??
+                            (response as any)
+                              ?.objects ??
+                            [];
+      
+      console.log('Parsed list:',list);
+      const mappedProducts: Product[] = (list as any[]).map((item) => (
+            {
+              id: item.id,
+              categoryId: item.category_id,
+              name: item.name || 'Sản phẩm',
+              // priority:
+              // sale_price -> price -> base_price
+              price:
+                item.sale_price ??
+                item.price ??
+                item.base_price ??
+                0,
 
-            name:
-              item.name ||
-              'Sản phẩm',
+              originalPrice:
+                item.base_price &&
+                item.base_price >
+                  (item.sale_price ??
+                    item.price ??
+                    0)
+                  ? item.base_price
+                  : undefined,
 
-            // priority:
-            // sale_price -> price -> base_price
-            price:
-              item.sale_price ??
-              item.price ??
-              item.base_price ??
-              0,
+              image:
+                item.primary_image_url ||
+                item.image ||
+                null,
 
-            originalPrice:
-              item.base_price &&
-              item.base_price >
-                (item.sale_price ??
-                  item.price ??
-                  0)
-                ? item.base_price
+              category: item.category_name || '',
+              brand: item.brand_name || '',
+              rating: 4,
+              reviewsCount: 10,
+              badges: item.tag
+                ? [item.tag]
+                : item.category_name
+                ? [item.category_name]
                 : undefined,
 
-            image:
-              item.primary_image_url ||
-              item.image ||
-              null,
+              description: item.description ?? '',
+            }))
+            .sort((a, b) => { const priceA = a.price || 0; const priceB = b.price || 0;
 
-            category:
-              item.category_name ||
-              '',
+              // always move zero-price products to bottom
+              if (priceA === 0 && priceB !== 0 ) {
+                return 1;
+              }
 
-            brand:
-              item.brand_name || '',
+              if (priceB === 0 && priceA !== 0) {
+                return -1;
+              }
 
-            rating: 4,
+              // keep backend order
+              return 0;
+            });
 
-            reviewsCount: 10,
+        if (append) {
+          setProducts((prev) => [
+            ...prev,
+            ...mappedProducts,
+          ]);
+        } else {
+          setProducts(mappedProducts);
+        }
 
-            badges: item.tag
-              ? [item.tag]
-              : item.category_name
-              ? [item.category_name]
-              : undefined,
+        setHasMore(
+          mappedProducts.length === 25
+        );
+      } catch (err) {
+        console.error(
+          'Error loading products:',
+          err
+        );
 
-            description:
-              item.description ??
-              '',
-          }))
-          .sort((a, b) => {
-            const priceA =
-              a.price || 0;
+        setError(
+          'Không thể tải sản phẩm.'
+        );
 
-            const priceB =
-              b.price || 0;
-
-            // always move zero-price products to bottom
-            if (
-              priceA === 0 &&
-              priceB !== 0
-            ) {
-              return 1;
-            }
-
-            if (
-              priceB === 0 &&
-              priceA !== 0
-            ) {
-              return -1;
-            }
-
-            // keep backend order
-            return 0;
-          });
-
-      if (append) {
-        setProducts((prev) => [
-          ...prev,
-          ...mappedProducts,
-        ]);
-      } else {
-        setProducts(mappedProducts);
+        if (!append) {
+          setProducts([]);
+        }
       }
-
-      setHasMore(
-        mappedProducts.length === 25
-      );
-    } catch (err) {
-      console.error(
-        'Error loading products:',
-        err
-      );
-
-      setError(
-        'Không thể tải sản phẩm.'
-      );
-
-      if (!append) {
-        setProducts([]);
-      }
-    }
-  },
-  [
-    categoryId,
-    brandId,
-    sortBy,
-    priceFilter,
-  ]
-);
+    },
+    [
+      categoryId,
+      brandId,
+      sortBy,
+      priceFilter,
+      searchText,
+    ]
+  );
 
   useEffect(() => {
     const loadBrands = async () => {
@@ -266,7 +248,9 @@ export default function ListingPage({ setPage, setProductId, setCategoryId, cate
   }, [categoryId]);
 
   useEffect(() => {
-    if (!categoryId) {
+    const hasSearch = !!searchText?.trim();
+    const hasCategory = !!categoryId;
+    if (!hasCategory && !hasSearch) {
       setProducts([]);
       setError(null);
       setLoading(false);
@@ -283,7 +267,7 @@ export default function ListingPage({ setPage, setProductId, setCategoryId, cate
     fetchProducts(1, false).finally(() => {
       setLoading(false);
     });
-  }, [categoryId, brandId, sortBy, fetchProducts]);
+  }, [categoryId, brandId, sortBy, searchText, fetchProducts]);
 
   const handleLoadMore = useCallback(() => {
     if (loadingMore || !hasMore) return;
@@ -300,8 +284,11 @@ export default function ListingPage({ setPage, setProductId, setCategoryId, cate
       });
   }, [fetchProducts, hasMore, loadingMore, page]);
 
-  const allProducts = categoryId ? products : PRODUCTS;
-  const displayProducts = categoryId ? allProducts : allProducts.slice(0, visibleCount);
+  const isSearching = !!searchText?.trim();
+  const useApiProducts = !!categoryId || isSearching;
+
+  const allProducts = useApiProducts ? products : PRODUCTS;
+  const displayProducts = useApiProducts ? allProducts : allProducts.slice(0, visibleCount);
   const productCount = allProducts.length;
 
   return (
@@ -433,11 +420,11 @@ export default function ListingPage({ setPage, setProductId, setCategoryId, cate
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
-            <h1 className="text-4xl font-black tracking-tighter text-zinc-900 mb-1 font-['Inter'] uppercase">Điện thoại</h1>
+            {/* <h1 className="text-4xl font-black tracking-tighter text-zinc-900 mb-1 font-['Inter'] uppercase">Sản phẩm</h1> */}
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-[#FFD194] rounded-full"></div>
               <p className="text-zinc-400 text-xs font-black uppercase tracking-[0.2em]">
-                {productCount} PREMIUM ITEMS
+                {productCount} sản phẩm
               </p>
             </div>
           </div>

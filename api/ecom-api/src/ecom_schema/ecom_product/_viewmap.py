@@ -78,6 +78,9 @@ class CategoryBrandSeriesListView(ViewBase):
 class ProductListView(ViewBase):
     __tablename__ = "_product_list"
     __table_args__ = {"schema": SCHEMA, "info": {"is_view": True}}
+    __ts_index__ = [
+        "name",# "brand_name", "line_name", "series_name", "category_name", "sku",
+    ]
 
     _id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     _created: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True))

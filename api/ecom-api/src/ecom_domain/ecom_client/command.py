@@ -11,6 +11,7 @@ import uuid
 import bcrypt
 import jwt
 from typing import Optional
+from fastapi import Request, HTTPException
 
 Command = ECOMClientServiceDomain.Command
 
@@ -46,57 +47,89 @@ class SignUpCommand(Command):
         """
 
         # Parse and validate input
-        signup_data = serialize_mapping(payload)
-        username = signup_data["username"]
-        email = signup_data["email"]
-        password = signup_data["password"]
-        first_name = signup_data["first_name"]
-        last_name = signup_data["last_name"]
-        phone = signup_data["phone"]    
-        existing_user = await agg.check_user_exists(username=username, email=email)
-        if existing_user:
+        try:
+            signup_data = serialize_mapping(payload)
+            username = signup_data["username"]
+            email = signup_data["email"]
+            password = signup_data["password"]
+            first_name = signup_data["first_name"]
+            last_name = signup_data["last_name"]
+            phone = signup_data["phone"]    
+            existing_user = await agg.check_user_exists(username=username, email=email)
+            if existing_user:
+                raise BadRequestError(
+                        "USER.001",
+                        "Username or email already registered. Please use a different username or email."
+                    )
+            
+            # Create user first (before session, due to FK constraint)
+            new_user_id = UUID_GENR()
+            user_data = await agg.create_user(
+                user_id=new_user_id,
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone
+            )
+            
+            # Create session after user exists
+            session_id = UUID_GENR()
+            await agg.create_session(
+                user_id=new_user_id,
+                session_id=session_id,
+                source=UserSourceEnum.WEB
+            )
+            
+            # Generate JWT token
+            # token = await agg.generate_jwt_token(user_id=new_user_id, username=username)
+
+            # Update last login
+            await agg.update_last_login(user_id=new_user_id)
+
+            #Generate JWT token
+            now = datetime.now(timezone.utc)
+            payload = {
+                "user_id": str(new_user_id),
+                "username": username,
+                "session_id": str(session_id),
+                "sub": str(new_user_id),
+                "preferred_username": username,
+                "sid": str(session_id),
+                "exp": int((now + timedelta(hours=int(JWT_EXPIRATION_HOURS))).timestamp()),
+                "iat": int(now.timestamp()),
+                "typ": "Bearer",
+                "type": "access",
+            }
+
+            token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+            
+            response_data = {
+                "user_id": str(new_user_id),
+                "username": username,
+                "email": email,
+                "access_token": str(token),
+                "token_type": "Bearer",
+                "expires_in": int(JWT_EXPIRATION_HOURS) * 3600,
+                "session_id": str(session_id)
+            }
+            
+            yield agg.create_response(
+                status="success",
+                message="Sign-up successful",
+                data=response_data,
+                _type="user-signup-response"
+            )
+        except BadRequestError:
+            raise
+        except Exception as e:
+            logger.error(f"Sign-up error: {str(e)}")
             raise BadRequestError(
-                    "USER.001",
-                    "Username or email already registered. Please use a different username or email."
-                )
-        
-        # Create user first (before session, due to FK constraint)
-        new_user_id = UUID_GENR()
-        user_data = await agg.create_user(
-            user_id=new_user_id,
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            phone=phone
-        )
-        
-        # Create session after user exists
-        session_id = UUID_GENR()
-        await agg.create_session(
-            user_id=new_user_id,
-            session_id=session_id,
-            source=UserSourceEnum.WEB
-        )
-        
-        # Generate JWT token
-        token = await agg.generate_jwt_token(new_user_id, username)
-        
-        response_data = {
-            "user_id": str(new_user_id),
-            "username": username,
-            "email": email,
-            "access_token": token,
-            "token_type": "Bearer",
-            "expires_in": JWT_EXPIRATION_HOURS * 3600,
-            "session_id": str(session_id)
-        }
-        
-        yield agg.create_response(
-            response_data,
-            _type="user-signup-response"
-        )
+                "AUTH.005",
+                f"Failed to sign up: {str(e)}"
+            )
+
 
 
 class SignInCommand(Command):
@@ -153,19 +186,6 @@ class SignInCommand(Command):
                     f"User account is {user.status.value}. Cannot sign in."
                 )
             
-            # Generate JWT token
-            # token = await agg.generate_jwt_token(user_id=user._id, username=user.username)
-            now = datetime.now(timezone.utc)
-
-            payload = {
-                "user_id": str(user._id),
-                "username": user.username,
-                "exp": int((now + timedelta(hours=int(JWT_EXPIRATION_HOURS))).timestamp()),
-                "iat": int(now.timestamp()),
-                "type": "access",
-            }
-
-            token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
             # Create session
             session_id = UUID_GENR()
             await agg.create_session(
@@ -174,6 +194,25 @@ class SignInCommand(Command):
                 source=UserSourceEnum.WEB,
                 email=user_identity.telecom__email
             )
+
+            # Generate JWT token
+            # token = await agg.generate_jwt_token(user_id=user._id, username=user.username)
+            now = datetime.now(timezone.utc)
+
+            payload = {
+                "user_id": str(user._id),
+                "username": user.username,
+                "session_id": str(session_id),
+                "sub": str(user._id),
+                "preferred_username": user.username,
+                "sid": str(session_id),
+                "exp": int((now + timedelta(hours=int(JWT_EXPIRATION_HOURS))).timestamp()),
+                "iat": int(now.timestamp()),
+                "typ": "Bearer",
+                "type": "access",
+            }
+
+            token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
             
             # Update last login
             await agg.update_last_login(user_id=user._id)
@@ -208,6 +247,7 @@ class SignOutCommand(Command):
         key = "sign-out"
         description = "Invalidate user session and log out."
         resources = ("user_session",)
+        resource_init = True
         tags = ["user", "session", "auth"]
         auth_required = True
 
@@ -223,25 +263,14 @@ class SignOutCommand(Command):
         Yields:
             Response confirming logout
         """
-        session_id = agg.get_aggroot().identifier
-        auth_user_id = agg.get_context().user_id
-        
-        # Fetch the actual session entity from state manager
-        # session = await stm.find_one(
-        #     "user_session",
-        #     where={"_id": session_id, "_deleted": None}
-        # )
-        
-        # if not session:
-        #     raise BadRequestError("AUTH.007", "Session not found")
-        
-        # session_owner_id = session.user_id
-        
-        # print(f"Session ID: {session_id}")
-        # # print(f"Session owner (from DB): {session_owner_id}")
-        # print(f"Auth user (from JWT context): {auth_user_id}")
-        # # print(f"Session object: {session}")
-        # print(f"Auth context user_id: {agg.get_context().user_id}")
+        ctx = agg.get_context()        
+        auth_header = ctx.authorization
+        if not auth_header:
+            raise Exception("Missing Authorization header")
+
+        token_payload = auth_header.user
+        session_id = token_payload.sid
+
         session = await agg.invalidate_session(session_id=session_id)
         
         response_data = {
@@ -256,25 +285,53 @@ class SignOutCommand(Command):
         )
 
 
-class CreateUserCommand(Command):
-    """Command to create a new user (legacy)."""
+# class CreateUserCommand(Command):
+#     """Command to create a new user (legacy)."""
+
+#     class Meta:
+#         key = "create-new-user"
+#         description = "Command to create a new user in the system."
+#         resources = ("user",)
+#         resource_init = True
+#         auth_required = False
+
+#     async def _process(self, agg, stm, payload):
+#         username = "Đức Thành"
+
+#         yield agg.create_response(
+#             status="success",
+#             message="User created successfully.",
+#             data={
+#                 "username": username
+#             }
+#         )
+
+class UpdateUserCommand(Command):
+    Data = datadef.UpdateInformationUser
 
     class Meta:
-        key = "create-new-user"
-        description = "Command to create a new user in the system."
+        key = "update_user"
+        description = "ommand to update a user exist in the system."
         resources = ("user",)
         resource_init = True
-        auth_required = False
+        auth_required = True
 
     async def _process(self, agg, stm, payload):
-        username = "Đức Thành"
+
+        data_update = serialize_mapping(payload)
+        user_id = agg.get_context().user_id
+        # profile = await stm.get_profile(user_id)
+        
+        user = await stm.find_one(
+            "user",
+            where={"_id": str(user_id)}
+        )
 
         yield agg.create_response(
             status="success",
             message="User created successfully.",
             data={
-                "username": username
+                "user_id": str(user_id),
+                "user": user
             }
         )
-
-    
